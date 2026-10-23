@@ -1,0 +1,74 @@
+name: Bug report
+description: Something is broken or behaves differently from what the documentation says.
+title: '[Bug]: '
+labels: ['bug', 'triage']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a report.
+
+        **Reminder:** this project is a *simulation*. A result that disagrees with
+        real fusion physics may be a documented model limitation rather than a bug.
+        Please check the model notes in the app (REACTOR / MAGNETIC / COOLING /
+        POWER pages) and the "Known limitations" section of the README first.
+
+        **Do not paste API keys, tokens or any credentials.** Redact logs.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the observed behaviour.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the console and press START
+        2. Set NBI power to 46 MW
+        3. Inject COOLANT_LOSS at 80%
+        4. Observe ...
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and OS
+      placeholder: 'Chrome 141 / macOS 15.2'
+    validations:
+      required: true
+
+  - type: input
+    id: commit
+    attributes:
+      label: Commit or version
+      placeholder: 'main @ abc1234'
+
+  - type: textarea
+    id: console
+    attributes:
+      label: Console output
+      description: Paste only the relevant lines, with any credentials removed.
+      render: shell
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Checklist
+      options:
+        - label: I reproduced this on the latest `main`.
+          required: true
+        - label: I have removed all credentials and personal data from this report.
+          required: true
