@@ -600,6 +600,7 @@ export function History() {
                       min={0}
                       max={Math.max(0, dataset.samples.length - 2)}
                       value={Math.min(range.start, dataset.samples.length - 1)}
+                      aria-label="Playback range start"
                       onChange={(event) =>
                         setRange((current) => ({
                           start: Math.min(Number(event.target.value), current.end - 1),
@@ -621,6 +622,7 @@ export function History() {
                       min={1}
                       max={Math.max(1, dataset.samples.length - 1)}
                       value={Math.min(range.end, dataset.samples.length - 1)}
+                      aria-label="Playback range end"
                       onChange={(event) =>
                         setRange((current) => ({
                           start: current.start,
@@ -643,6 +645,7 @@ export function History() {
                     min={range.start}
                     max={Math.max(range.start, range.end)}
                     value={Math.min(cursor, range.end)}
+                    aria-label="Playback playhead position"
                     onChange={(event) => {
                       setPlaying(false);
                       setCursor(Number(event.target.value));

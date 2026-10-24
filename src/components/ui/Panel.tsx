@@ -35,6 +35,9 @@ export function Panel({
         {right && <div className="flex items-center gap-1 shrink-0">{right}</div>}
       </header>
       <div
+        tabIndex={scroll ? 0 : undefined}
+        role={scroll ? 'region' : undefined}
+        aria-label={scroll ? title : undefined}
         className={`${scroll ? 'hud-body scroll-thin' : 'relative z-[1] flex-1 min-h-0 flex flex-col'} ${
           dense ? 'p-1.5' : 'p-2.5'
         } ${bodyClassName}`}
