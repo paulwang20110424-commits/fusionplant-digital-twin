@@ -200,6 +200,25 @@ export interface SimulationStore {
   clearValidation: () => void;
 }
 
+/** Resolve the initial console page from the URL so a deep link never renders
+ * (and therefore never downloads) the overview/3D bundle first. */
+function initialPageFromUrl(): PageId {
+  if (typeof window === 'undefined') return 'OVERVIEW';
+  const slug = new URLSearchParams(window.location.search).get('page');
+  const map: Record<string, PageId> = {
+    overview: 'OVERVIEW',
+    reactor: 'REACTOR',
+    magnetic: 'MAGNETIC',
+    heating: 'HEATING',
+    cooling: 'COOLING',
+    power: 'POWER',
+    diagnostics: 'DIAGNOSTICS',
+    simulation: 'SIMULATION',
+    history: 'HISTORY',
+  };
+  return map[(slug ?? '').toLowerCase()] ?? 'OVERVIEW';
+}
+
 const initialFrame = simulationEngine.snapshot();
 
 export const useSimulationStore = create<SimulationStore>((set, get) => ({
@@ -211,7 +230,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
   faults: [],
   raisedAlarms: 0,
 
-  activePage: 'OVERVIEW',
+  activePage: initialPageFromUrl(),
   selectedComponent: 'plasma',
   reactorView: 'FULL',
   showFieldLines: true,
