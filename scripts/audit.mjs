@@ -249,7 +249,7 @@ push({ step: 'emergency', layout: await layout('emergency') });
 const headerAfterStop = await page.locator('header').first().innerText();
 
 // 10. reset
-await page.locator('header button[title="Reset simulation"]').first().click();
+await page.locator('header button[aria-label="Reset simulation"]').first().click();
 await page.waitForTimeout(800);
 push({ step: 'after-reset', layout: await layout('after-reset') });
 
