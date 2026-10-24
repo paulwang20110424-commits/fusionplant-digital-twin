@@ -22,6 +22,18 @@ export default defineConfig({
   build: {
     target: 'es2022',
     chunkSizeWarningLimit: 1800,
+    rollupOptions: {
+      output: {
+        // Keep the WebGL stack and the charting stack in their own chunks so a
+        // route that needs neither (HISTORY, SIMULATION) never downloads them.
+        manualChunks(id: string) {
+          if (!id.includes('node_modules')) return undefined;
+          if (id.includes('three') || id.includes('@react-three')) return 'vendor-three';
+          if (id.includes('echarts') || id.includes('zrender')) return 'vendor-echarts';
+          return undefined;
+        },
+      },
+    },
   },
   test: {
     environment: 'node',
