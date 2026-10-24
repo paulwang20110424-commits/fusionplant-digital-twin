@@ -105,6 +105,12 @@ jobs:
       - name: Interaction audit (1600x950)
         run: npm run audit
 
+      - name: Interaction audit (1440x950)
+        run: node scripts/audit.mjs http://127.0.0.1:5174/ 1440 950
+
+      - name: Interaction audit (1280x720)
+        run: node scripts/audit.mjs http://127.0.0.1:5174/ 1280 720
+
       - name: Interaction audit (1024x768)
         run: npm run audit:tablet
 
