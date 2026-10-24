@@ -71,6 +71,7 @@ export function EventLog({ height = 260, compact = false }: { height?: number; c
           CSV
         </button>
       </div>
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region must be keyboard focusable (WCAG 2.1.1) */}
       <div
         tabIndex={0}
         role="region"
@@ -187,6 +188,7 @@ export function AlarmHistoryTable() {
         </span>
       </div>
 
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region must be keyboard focusable (WCAG 2.1.1) */}
       <div
         tabIndex={0}
         role="region"
