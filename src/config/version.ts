@@ -18,7 +18,7 @@
 export const APP_NAME = 'FusionPlant Digital Twin';
 
 /** Semantic version of the application. Must equal package.json "version". */
-export const APP_VERSION = '1.2.1';
+export const APP_VERSION = '1.2.2';
 
 /** Version of the simulation model definition (equations, defaults, constants). */
 export const MODEL_VERSION = '1.0.0';
@@ -27,7 +27,7 @@ export const MODEL_VERSION = '1.0.0';
 export const EXPORT_SCHEMA_VERSION = 1;
 
 /** Human-readable release name shown in the console. */
-export const RELEASE_NAME = 'Complete Verification';
+export const RELEASE_NAME = 'Chunk Isolation';
 
 /** Release date (ISO). */
 export const RELEASE_DATE = '2026-10-23';

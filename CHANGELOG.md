@@ -7,6 +7,18 @@ the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 > Every value produced by this project is **simulated**. It is an educational and
 > software-validation artefact, not a representation of any real fusion device.
 
+## [1.2.2] — 2026-10-24 · "Chunk Isolation"
+
+### Added
+
+- Browser audit now asserts the 3D bundle never loads on a non-3D route: a fresh
+  page opens `/?page=history` and fails the build if any `ReactorView` / `ReactorScene`
+  request is observed. This closes the last verification gap from the v1.2.0 review.
+
+### Changed
+
+- No application, model or data-schema changes. Version bump is verification-only.
+
 ## [1.2.1] — 2026-10-24 · "Complete Verification"
 
 Closes every test/verification gap listed in the v1.2.0 acceptance review. No

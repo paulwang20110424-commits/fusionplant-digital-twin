@@ -326,6 +326,20 @@ report.checks.storage = {
 };
 await page.screenshot({ path: `${outDir}/f-restored-session.png` });
 
+// 13. The 3D scene must not load on a non-3D route (K.11).
+const cleanContext = await browser.newContext({ viewport: { width: 1440, height: 950 } });
+const cleanPage = await cleanContext.newPage();
+const loadedChunks = [];
+cleanPage.on('request', (request) => {
+  const requestUrl = request.url();
+  if (/\.(js|tsx)(\?|$)/.test(requestUrl)) loadedChunks.push(requestUrl.split('/').pop());
+});
+await cleanPage.goto(`${url}?page=history`, { waitUntil: 'networkidle', timeout: 45000 });
+await cleanPage.waitForTimeout(1500);
+const reactorChunks = loadedChunks.filter((name) => /Reactor(View|Scene)/i.test(name ?? ''));
+report.checks.threeDChunkIsolation = { chunks: loadedChunks.length, reactorChunks };
+await cleanContext.close();
+
 // text sanity
 const bodyText = await page.locator('body').innerText();
 report.checks.bodyHasNaN = /\bNaN\b|\bInfinity\b|\bundefined\b/.test(bodyText);
@@ -353,6 +367,7 @@ const summary = {
     bodyHasNaN: report.checks.bodyHasNaN,
     csvDownload: report.checks.csvDownload,
     storage: report.checks.storage,
+    threeDChunkIsolation: report.checks.threeDChunkIsolation,
     consoleErrors: consoleErrors.length,
     pageErrors: pageErrors.length,
     failedRequests: failedRequests.length,
@@ -379,6 +394,11 @@ if (!report.checks.faultInjected) failures.push('fault injection did not registe
 if (report.checks.whatIfRows < 10) failures.push('WHAT-IF comparison table was not produced');
 if (!report.checks.csvDownload || report.checks.csvDownload.error || !report.checks.csvDownload.header) {
   failures.push('CSV export check failed');
+}
+if (report.checks.threeDChunkIsolation && report.checks.threeDChunkIsolation.reactorChunks.length > 0) {
+  failures.push(
+    `3D chunk loaded on a non-3D route: ${report.checks.threeDChunkIsolation.reactorChunks.join(', ')}`,
+  );
 }
 if (!report.checks.storage || !report.checks.storage.playbackLoaded) {
   failures.push('session persistence/restore check failed');

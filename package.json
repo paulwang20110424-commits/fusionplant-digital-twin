@@ -1,7 +1,7 @@
 {
   "name": "fusionplant-digital-twin",
   "private": true,
-  "version": "1.2.1",
+  "version": "1.2.2",
   "type": "module",
   "description": "FusionPlant Digital Twin - interactive simulated fusion plant control platform (educational, simulated data only)",
   "scripts": {
