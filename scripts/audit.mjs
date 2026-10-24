@@ -131,7 +131,9 @@ push({
 });
 
 // 4. inject a fault from the overview quick panel
-const injectButtons = page.getByRole('button', { name: 'INJECT' });
+// Exact match: the equipment list also contains the word "Injector" in its
+// accessible name, so a substring match would target the wrong button.
+const injectButtons = page.getByRole('button', { name: 'INJECT', exact: true });
 const injectCount = await injectButtons.count();
 if (injectCount > 0) {
   await injectButtons.first().click();
