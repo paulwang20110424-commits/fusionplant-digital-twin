@@ -71,7 +71,13 @@ export function EventLog({ height = 260, compact = false }: { height?: number; c
           CSV
         </button>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto scroll-thin" style={{ maxHeight: height }}>
+      <div
+        tabIndex={0}
+        role="region"
+        aria-label="Event log entries"
+        className="min-h-0 flex-1 overflow-y-auto scroll-thin focus-visible:outline focus-visible:outline-2 focus-visible:outline-sys"
+        style={{ maxHeight: height }}
+      >
         {visible.length === 0 ? (
           <p className="py-4 text-center text-[10px] text-faint">No events in this category yet.</p>
         ) : compact ? (
@@ -181,7 +187,13 @@ export function AlarmHistoryTable() {
         </span>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto scroll-thin" style={{ maxHeight: 232 }}>
+      <div
+        tabIndex={0}
+        role="region"
+        aria-label="Alarm history entries"
+        className="min-h-0 flex-1 overflow-y-auto scroll-thin focus-visible:outline focus-visible:outline-2 focus-visible:outline-sys"
+        style={{ maxHeight: 232 }}
+      >
         {rows.length === 0 ? (
           <p className="py-4 text-center text-[10px] text-faint">
             {filter === 'ALL'
