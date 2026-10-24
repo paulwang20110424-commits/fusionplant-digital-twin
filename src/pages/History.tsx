@@ -7,7 +7,14 @@ import { useSimulationStore } from '@/store/simulationStore';
 import { historyBuffer } from '@/store/historyBuffer';
 import type { HistorySample, PersistedSession } from '@/types/simulation';
 import { summarizeSeries } from '@/simulation/FusionSimulationEngine';
-import { downloadTextFile, samplesToCSV, sessionToJSON, timestampSlug } from '@/utils/export';
+import {
+  buildExportFileName,
+  downloadTextFile,
+  parseSessionExport,
+  samplesToCSV,
+  sessionToJSON,
+} from '@/utils/export';
+import { MODEL_VERSION, VERSION_SHORT } from '@/config/version';
 import { formatBytes, formatClock, formatDateTime, formatNumber } from '@/utils/units';
 
 type SourceId = 'LIVE' | string;
@@ -38,18 +45,32 @@ export function History() {
   const refreshSessions = useSimulationStore((state) => state.refreshSessions);
   const readSession = useSimulationStore((state) => state.readSession);
   const removeSession = useSimulationStore((state) => state.removeSession);
+  const renameSession = useSimulationStore((state) => state.renameSession);
+  const importSession = useSimulationStore((state) => state.importSession);
   const pushToast = useSimulationStore((state) => state.pushToast);
   const appendEvent = useSimulationStore((state) => state.appendEvent);
   const liveFrame = useSimulationStore((state) => state.frame);
 
-  const [dataset, setDataset] = useState<Dataset | null>(null);
+  const [dataset, setDataset] = useState<Dataset | null>(() => {
+    const samples = historyBuffer.all();
+    return samples.length
+      ? { id: 'LIVE', label: 'Live buffer snapshot', scenario: 'current run', samples }
+      : null;
+  });
   const [compare, setCompare] = useState<Dataset | null>(null);
-  const [cursor, setCursor] = useState(0);
-  const [range, setRange] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
+  const [cursor, setCursor] = useState(() => (dataset ? Math.max(0, dataset.samples.length - 1) : 0));
+  const [range, setRange] = useState<{ start: number; end: number }>(() => ({
+    start: 0,
+    end: dataset ? Math.max(0, dataset.samples.length - 1) : 0,
+  }));
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(8);
   const [metricKey, setMetricKey] = useState<(typeof METRICS)[number]['key']>('temperature');
   const [sessionName, setSessionName] = useState('');
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [importError, setImportError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const timerRef = useRef<number | null>(null);
   const metric = METRICS.find((entry) => entry.key === metricKey) ?? METRICS[0];
@@ -58,21 +79,8 @@ export function History() {
     refreshSessions();
   }, [refreshSessions]);
 
-  // Capture the live buffer once on mount so playback is independent of the live run.
-  useEffect(() => {
-    const samples = historyBuffer.all();
-    if (samples.length) {
-      setDataset({
-        id: 'LIVE',
-        label: 'Live buffer snapshot',
-        scenario: 'current run',
-        samples,
-      });
-      setRange({ start: 0, end: Math.max(0, samples.length - 1) });
-      setCursor(Math.max(0, samples.length - 1));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // The live buffer is captured in a lazy initialiser so playback starts from an
+  // immutable copy without a state-setting effect on mount.
 
   useEffect(() => {
     if (!playing || !dataset) return undefined;
@@ -177,13 +185,59 @@ export function History() {
   const summaryA = useMemo(() => summaryOf(dataset?.samples ?? []), [dataset]);
   const summaryB = useMemo(() => summaryOf(compare?.samples ?? []), [compare]);
 
+  const handleImportFile = async (file: File | null) => {
+    if (!file) return;
+    setImportError(null);
+    try {
+      const text = await file.text();
+      const parsed = parseSessionExport(text);
+      if (!parsed.ok || !parsed.session) {
+        setImportError(parsed.error ?? 'The file could not be read.');
+        pushToast(parsed.error ?? 'Import failed.', 'critical');
+        return;
+      }
+      importSession(parsed.session);
+      setDataset({
+        id: parsed.session.id,
+        label: parsed.session.name,
+        scenario: parsed.session.scenarioName,
+        samples: parsed.session.samples,
+      });
+      setRange({ start: 0, end: Math.max(0, parsed.session.samples.length - 1) });
+      setCursor(0);
+      if (parsed.warnings.length) {
+        pushToast(`Imported with ${parsed.warnings.length} compatibility note(s).`, 'warning');
+      }
+    } catch (error) {
+      setImportError((error as Error).message);
+      pushToast('Import failed: unreadable file.', 'critical');
+    }
+  };
+
+  const copyRunId = async (runId: string | undefined) => {
+    if (!runId) {
+      pushToast('This run has no run id (legacy export).', 'warning');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(runId);
+      pushToast(`Copied run id ${runId}.`, 'success');
+    } catch {
+      pushToast(`Run id: ${runId}`, 'info');
+    }
+  };
+
   const exportRangeCsv = () => {
     if (!windowSamples.length) {
       pushToast('Select a range with samples first.', 'warning');
       return;
     }
     downloadTextFile(
-      `fusionplant-history-${timestampSlug()}.csv`,
+      buildExportFileName(
+        'history',
+        { runId: dataset?.id === 'LIVE' ? liveFrame.runId : dataset?.id, scenario: dataset?.scenario },
+        'csv',
+      ),
       samplesToCSV(windowSamples, {
         source: 'FusionPlant Digital Twin — historical playback range',
         dataset: dataset?.label ?? 'n/a',
@@ -212,7 +266,11 @@ export function History() {
       sampleCount: windowSamples.length,
       approxBytes: windowSamples.length * 240,
     };
-    downloadTextFile(`fusionplant-history-${timestampSlug()}.json`, sessionToJSON(session), 'application/json');
+    downloadTextFile(
+      buildExportFileName('session', { runId: session.runId, scenario: session.scenarioName }, 'json'),
+      sessionToJSON(session),
+      'application/json',
+    );
     pushToast('Range exported as JSON.', 'success');
   };
 
@@ -224,9 +282,28 @@ export function History() {
         description="Browse the in-memory history buffer or a session saved in browser storage, scrub or replay a selected interval, and compare two experiments. Playback is read-only: it never touches the running simulation."
         right={
           <>
-            <button type="button" className="btn btn-xs" onClick={captureLive}>
+            <button type="button" className="btn btn-xs" onClick={captureLive} data-demo="capture-buffer">
               CAPTURE LIVE BUFFER
             </button>
+            <button
+              type="button"
+              className="btn btn-xs"
+              onClick={() => fileInputRef.current?.click()}
+              aria-label="Import a session JSON file"
+            >
+              IMPORT JSON
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              aria-label="Choose a session JSON file to import"
+              onChange={(event) => {
+                void handleImportFile(event.target.files?.[0] ?? null);
+                event.target.value = '';
+              }}
+            />
             <button type="button" className="btn btn-xs" onClick={refreshSessions}>
               REFRESH STORAGE
             </button>
@@ -237,10 +314,20 @@ export function History() {
         }
       />
 
+      {importError && (
+        <Callout tone="crit" title="Import rejected">
+          {importError}
+        </Callout>
+      )}
+
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 xl:grid-cols-[286px_minmax(0,1fr)_320px]">
         {/* ---------------- sessions ---------------- */}
         <div className="flex flex-col gap-2">
-          <Panel title="Saved Sessions" subtitle={`${sessions.length} in browser storage`} bodyClassName="!p-2">
+          <Panel
+            title="Saved Sessions"
+            subtitle={`${sessions.length} in browser storage`}
+            bodyClassName="!p-2"
+          >
             <div className="flex max-h-[260px] flex-col gap-1 overflow-y-auto scroll-thin">
               {sessions.length === 0 && (
                 <p className="py-3 text-center text-[9px] leading-snug text-faint">
@@ -251,33 +338,101 @@ export function History() {
                 <div key={session.id} className="rounded-sm border border-edge/50 bg-white/[0.012] p-1.5">
                   <div className="flex items-start justify-between gap-1">
                     <span className="truncate text-[10px] text-ink">{session.name}</span>
-                    <span className="num shrink-0 text-[8px] text-faint">{formatBytes(session.approxBytes)}</span>
+                    <span className="num shrink-0 text-[8px] text-faint">
+                      {formatBytes(session.approxBytes)}
+                    </span>
                   </div>
                   <div className="num text-[8px] text-faint">
-                    {formatDateTime(session.createdAt)} · {session.sampleCount} pts · {formatClock(session.durationS)}
+                    {formatDateTime(session.createdAt)} · {session.sampleCount} pts ·{' '}
+                    {formatClock(session.durationS)}
                   </div>
-                  <div className="mt-1 flex gap-1">
-                    <button type="button" className="btn btn-xs flex-1" onClick={() => loadInto('A', session.id)}>
-                      LOAD A
-                    </button>
-                    <button type="button" className="btn btn-xs flex-1" onClick={() => loadInto('B', session.id)}>
-                      COMPARE B
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-xs btn-danger"
-                      onClick={() => removeSession(session.id)}
-                      title="Delete session"
-                    >
-                      ✕
-                    </button>
-                  </div>
+                  {(session.runId || session.randomSeed !== undefined) && (
+                    <div className="num truncate text-[8px] text-sys/70" title={session.runId}>
+                      {session.runId ?? 'no run id'} · seed {session.randomSeed ?? 'n/a'}
+                      {session.appVersion ? ` · v${session.appVersion}` : ''}
+                    </div>
+                  )}
+                  {renamingId === session.id ? (
+                    <div className="mt-1 flex gap-1">
+                      <input
+                        className="field h-[22px] flex-1 !text-[10px]"
+                        value={renameValue}
+                        autoFocus
+                        aria-label={`New name for ${session.name}`}
+                        onChange={(event) => setRenameValue(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            renameSession(session.id, renameValue);
+                            setRenamingId(null);
+                          }
+                          if (event.key === 'Escape') setRenamingId(null);
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-xs"
+                        onClick={() => {
+                          renameSession(session.id, renameValue);
+                          setRenamingId(null);
+                        }}
+                      >
+                        SAVE
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="mt-1 flex gap-1">
+                      <button
+                        type="button"
+                        className="btn btn-xs flex-1"
+                        onClick={() => loadInto('A', session.id)}
+                      >
+                        LOAD A
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-xs flex-1"
+                        onClick={() => loadInto('B', session.id)}
+                      >
+                        COMPARE B
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-xs"
+                        aria-label={`Rename ${session.name}`}
+                        title="Rename session"
+                        onClick={() => {
+                          setRenamingId(session.id);
+                          setRenameValue(session.name);
+                        }}
+                      >
+                        ✎
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-xs"
+                        aria-label={`Copy run id for ${session.name}`}
+                        title="Copy run id"
+                        onClick={() => void copyRunId(session.runId)}
+                      >
+                        ⧉
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-xs btn-danger"
+                        onClick={() => removeSession(session.id)}
+                        aria-label={`Delete ${session.name}`}
+                        title="Delete session"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
             <p className="mt-1.5 border-t border-edge/40 pt-1 text-[8px] leading-snug text-faint">
-              Sessions are compacted and capped so the browser quota cannot be exhausted; the oldest entry is evicted
-              when the limit is reached.
+              Sessions are compacted and capped so the browser quota cannot be exhausted; the oldest entry is
+              evicted when the limit is reached.
             </p>
           </Panel>
 
@@ -287,6 +442,9 @@ export function History() {
                 dense
                 rows={[
                   { label: 'Scenario', value: dataset.scenario, unit: '' },
+                  { label: 'Run id', value: liveFrame.runId, unit: '' },
+                  { label: 'Random seed', value: String(liveFrame.config.seed), unit: '' },
+                  { label: 'Model', value: MODEL_VERSION, unit: `v${VERSION_SHORT.slice(1)}` },
                   { label: 'Samples', value: String(dataset.samples.length), unit: '' },
                   {
                     label: 'Time span',
@@ -295,18 +453,41 @@ export function History() {
                       : '—',
                     unit: 's',
                   },
-                  { label: 'Peak temperature', value: formatNumber(summaryA.peakTemperatureKeV, 2), unit: 'keV' },
-                  { label: 'Peak fusion power', value: formatNumber(summaryA.peakFusionPowerMW, 1), unit: 'MW' },
-                  { label: 'Integrated thermal', value: formatNumber(summaryA.integratedThermalGJ, 1), unit: 'GJ' },
-                  { label: 'Integrated net electric', value: formatNumber(summaryA.integratedNetElectricGJ, 1), unit: 'GJ' },
+                  {
+                    label: 'Peak temperature',
+                    value: formatNumber(summaryA.peakTemperatureKeV, 2),
+                    unit: 'keV',
+                  },
+                  {
+                    label: 'Peak fusion power',
+                    value: formatNumber(summaryA.peakFusionPowerMW, 1),
+                    unit: 'MW',
+                  },
+                  {
+                    label: 'Integrated thermal',
+                    value: formatNumber(summaryA.integratedThermalGJ, 1),
+                    unit: 'GJ',
+                  },
+                  {
+                    label: 'Integrated net electric',
+                    value: formatNumber(summaryA.integratedNetElectricGJ, 1),
+                    unit: 'GJ',
+                  },
                 ]}
               />
             ) : (
-              <p className="py-2 text-center text-[9px] text-faint">Capture the live buffer or load a session.</p>
+              <p className="py-2 text-center text-[9px] text-faint">
+                Capture the live buffer or load a session.
+              </p>
             )}
           </Panel>
 
-          <Panel title="Dataset B" subtitle={compare?.label ?? 'none selected'} className="min-h-[180px] flex-1" bodyClassName="!p-2">
+          <Panel
+            title="Dataset B"
+            subtitle={compare?.label ?? 'none selected'}
+            className="min-h-[180px] flex-1"
+            bodyClassName="!p-2"
+          >
             {compare ? (
               <>
                 <ParameterTable
@@ -314,9 +495,21 @@ export function History() {
                   rows={[
                     { label: 'Scenario', value: compare.scenario, unit: '' },
                     { label: 'Samples', value: String(compare.samples.length), unit: '' },
-                    { label: 'Peak temperature', value: formatNumber(summaryB.peakTemperatureKeV, 2), unit: 'keV' },
-                    { label: 'Peak fusion power', value: formatNumber(summaryB.peakFusionPowerMW, 1), unit: 'MW' },
-                    { label: 'Integrated thermal', value: formatNumber(summaryB.integratedThermalGJ, 1), unit: 'GJ' },
+                    {
+                      label: 'Peak temperature',
+                      value: formatNumber(summaryB.peakTemperatureKeV, 2),
+                      unit: 'keV',
+                    },
+                    {
+                      label: 'Peak fusion power',
+                      value: formatNumber(summaryB.peakFusionPowerMW, 1),
+                      unit: 'MW',
+                    },
+                    {
+                      label: 'Integrated thermal',
+                      value: formatNumber(summaryB.integratedThermalGJ, 1),
+                      unit: 'GJ',
+                    },
                   ]}
                 />
                 <button type="button" className="btn btn-xs mt-1 w-full" onClick={() => setCompare(null)}>
@@ -362,6 +555,17 @@ export function History() {
             }
             bodyClassName="!p-2"
           >
+            <div className="mb-1.5 flex flex-wrap items-center gap-2 rounded-sm border border-amber-500/40 bg-amber-500/[0.06] px-2 py-1">
+              <span className="chip chip-warn">REPLAY MODE</span>
+              <span className="text-[9px] text-amber-100/80">
+                Read-only playback — the live simulation keeps running and is not affected.
+              </span>
+              <span className="num ml-auto text-[8.5px] text-faint">
+                playhead {cursorSample ? `T+${cursorSample.t.toFixed(1)}s` : '—'} · run{' '}
+                {dataset?.samples.length ?? 0} pts
+              </span>
+            </div>
+
             <div className="h-[250px] rounded-sm border border-edge/50 bg-[#04101a]/60 p-1">
               {dataset ? (
                 <StaticMultiChart
@@ -386,7 +590,9 @@ export function History() {
                     <div className="mb-0.5 flex items-center justify-between">
                       <span className="label">Range start</span>
                       <span className="num text-[8.5px] text-muted">
-                        {dataset.samples[Math.min(range.start, dataset.samples.length - 1)]?.t.toFixed(1) ?? 0} s
+                        {dataset.samples[Math.min(range.start, dataset.samples.length - 1)]?.t.toFixed(1) ??
+                          0}{' '}
+                        s
                       </span>
                     </div>
                     <input
@@ -406,7 +612,8 @@ export function History() {
                     <div className="mb-0.5 flex items-center justify-between">
                       <span className="label">Range end</span>
                       <span className="num text-[8.5px] text-muted">
-                        {dataset.samples[Math.min(range.end, dataset.samples.length - 1)]?.t.toFixed(1) ?? 0} s
+                        {dataset.samples[Math.min(range.end, dataset.samples.length - 1)]?.t.toFixed(1) ?? 0}{' '}
+                        s
                       </span>
                     </div>
                     <input
@@ -470,7 +677,11 @@ export function History() {
             {cursorSample ? (
               <div className="grid grid-cols-2 gap-x-4 md:grid-cols-4">
                 <ReadOut label="Temperature" value={formatNumber(cursorSample.temperature, 2)} unit="keV" />
-                <ReadOut label="Density" value={formatNumber(cursorSample.density / 1e19, 2)} unit="1e19 m⁻³" />
+                <ReadOut
+                  label="Density"
+                  value={formatNumber(cursorSample.density / 1e19, 2)}
+                  unit="1e19 m⁻³"
+                />
                 <ReadOut label="Fusion power" value={formatNumber(cursorSample.fusionPower, 1)} unit="MW" />
                 <ReadOut label="Heating" value={formatNumber(cursorSample.heatingPower, 1)} unit="MW" />
                 <ReadOut label="Q plasma" value={formatNumber(cursorSample.qPlasma, 2)} unit="—" />
@@ -501,19 +712,69 @@ export function History() {
                   </tr>
                 </thead>
                 <tbody>
-                  <CompareRow label="Peak temp" unit="keV" a={summaryA.peakTemperatureKeV} b={summaryB.peakTemperatureKeV} digits={2} />
-                  <CompareRow label="Peak fusion" unit="MW" a={summaryA.peakFusionPowerMW} b={summaryB.peakFusionPowerMW} digits={1} />
-                  <CompareRow label="Final Q" unit="—" a={summaryA.finalQPlasma} b={summaryB.finalQPlasma} digits={2} allowNull />
-                  <CompareRow label="Q_eng" unit="—" a={summaryA.finalQEngineering} b={summaryB.finalQEngineering} digits={2} allowNull />
-                  <CompareRow label="Min stability" unit="—" a={summaryA.minStability} b={summaryB.minStability} digits={3} />
-                  <CompareRow label="Thermal ∫" unit="GJ" a={summaryA.integratedThermalGJ} b={summaryB.integratedThermalGJ} digits={1} />
-                  <CompareRow label="Net electric ∫" unit="GJ" a={summaryA.integratedNetElectricGJ} b={summaryB.integratedNetElectricGJ} digits={1} />
-                  <CompareRow label="Peak coil T" unit="K" a={summaryA.finalCoilTempK} b={summaryB.finalCoilTempK} digits={2} />
+                  <CompareRow
+                    label="Temperature"
+                    unit="keV"
+                    a={summaryA.finalTemperatureKeV}
+                    b={summaryB.finalTemperatureKeV}
+                    digits={2}
+                  />
+                  <CompareRow
+                    label="Density"
+                    unit="1e19 m⁻³"
+                    a={summaryA.finalDensity / 1e19}
+                    b={summaryB.finalDensity / 1e19}
+                    digits={2}
+                  />
+                  <CompareRow
+                    label="Fusion power"
+                    unit="MW"
+                    a={summaryA.finalFusionPowerMW}
+                    b={summaryB.finalFusionPowerMW}
+                    digits={1}
+                  />
+                  <CompareRow
+                    label="Q plasma"
+                    unit="—"
+                    a={summaryA.finalQPlasma}
+                    b={summaryB.finalQPlasma}
+                    digits={2}
+                    allowNull
+                  />
+                  <CompareRow
+                    label="Net electric"
+                    unit="MW"
+                    a={summaryA.finalNetElectricMW}
+                    b={summaryB.finalNetElectricMW}
+                    digits={1}
+                  />
+                  <CompareRow
+                    label="Stability"
+                    unit="—"
+                    a={summaryA.finalStability}
+                    b={summaryB.finalStability}
+                    digits={3}
+                  />
+                  <CompareRow
+                    label="Coolant outlet"
+                    unit="°C"
+                    a={summaryA.finalCoolantOutC}
+                    b={summaryB.finalCoolantOutC}
+                    digits={1}
+                  />
+                  <CompareRow
+                    label="Coil temperature"
+                    unit="K"
+                    a={summaryA.finalCoilTempK}
+                    b={summaryB.finalCoilTempK}
+                    digits={2}
+                  />
                 </tbody>
               </table>
             ) : (
               <p className="py-3 text-center text-[9px] leading-snug text-faint">
-                Load a dataset into A and another into B to compare integrated energy balances, gains and stability.
+                Load a dataset into A and another into B to compare integrated energy balances, gains and
+                stability.
               </p>
             )}
           </Panel>
@@ -530,7 +791,9 @@ export function History() {
                 type="button"
                 className="btn btn-xs btn-primary"
                 onClick={() => {
-                  useSimulationStore.getState().exportCurrentSession(sessionName || `History ${new Date().toLocaleTimeString()}`);
+                  useSimulationStore
+                    .getState()
+                    .exportCurrentSession(sessionName || `History ${new Date().toLocaleTimeString()}`);
                   setSessionName('');
                 }}
               >
@@ -548,17 +811,22 @@ export function History() {
               </button>
             </div>
             <p className="mt-1.5 text-[8px] leading-snug text-faint">
-              Saved sessions survive a page refresh. Restore them with LOAD A / COMPARE B. Capacity is limited by the
-              browser quota; older sessions are evicted automatically.
+              Saved sessions survive a page refresh. Restore them with LOAD A / COMPARE B. Capacity is limited
+              by the browser quota; older sessions are evicted automatically.
             </p>
           </Panel>
 
           <Callout tone="info" title="Playback isolation">
-            Playback operates on immutable copies of recorded samples. It cannot advance, rewind or otherwise modify
-            the live simulation engine or its history buffer.
+            Playback operates on immutable copies of recorded samples. It cannot advance, rewind or otherwise
+            modify the live simulation engine or its history buffer.
           </Callout>
 
-          <Panel title="Event Log" subtitle="all recorded actions" className="min-h-[240px] flex-1" bodyClassName="!p-2">
+          <Panel
+            title="Event Log"
+            subtitle="all recorded actions"
+            className="min-h-[240px] flex-1"
+            bodyClassName="!p-2"
+          >
             <EventLog height={220} compact />
           </Panel>
         </div>
@@ -597,8 +865,7 @@ function CompareRow({
     if (value === null || !Number.isFinite(value)) return allowNull ? 'N/A' : '—';
     return value.toFixed(digits);
   };
-  const better =
-    a !== null && b !== null && Number.isFinite(a) && Number.isFinite(b) ? b > a : null;
+  const better = a !== null && b !== null && Number.isFinite(a) && Number.isFinite(b) ? b > a : null;
 
   return (
     <tr>

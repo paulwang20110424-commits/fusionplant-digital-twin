@@ -133,7 +133,8 @@ export function StaticMultiChart({
               },
             }
           : undefined,
-        markLine: index === 0 && annotations.length ? { silent: true, symbol: 'none', data: annotations } : undefined,
+        markLine:
+          index === 0 && annotations.length ? { silent: true, symbol: 'none', data: annotations } : undefined,
         emphasis: { disabled: true },
       })),
     } as EChartsOption;

@@ -74,7 +74,11 @@ export function TrendChart({
   const windowSec = useSimulationStore((state) => state.chartWindowSec);
   const effectiveWindow = windowOverride ?? windowSec;
 
-  const samples = useMemo(() => historyBuffer.window(effectiveWindow), [epoch, effectiveWindow]);
+  const samples = useMemo(() => {
+    // `epoch` changes on every chart tick; touching it forces a fresh window.
+    void epoch;
+    return historyBuffer.window(effectiveWindow);
+  }, [epoch, effectiveWindow]);
 
   const option = useMemo<EChartsOption>(() => {
     const hasRight = series.some((item) => item.axis === 'right');
@@ -103,7 +107,10 @@ export function TrendChart({
       },
     } as EChartsOption['tooltip'];
 
-    const yAxes = [axisStyle(leftUnit), axisStyle(rightUnit)].slice(0, hasRight ? 2 : 1) as EChartsOption['yAxis'];
+    const yAxes = [axisStyle(leftUnit), axisStyle(rightUnit)].slice(
+      0,
+      hasRight ? 2 : 1,
+    ) as EChartsOption['yAxis'];
 
     return {
       ...NO_ANIMATION,
@@ -210,6 +217,7 @@ export function Sparkline({
 }) {
   const epoch = useSimulationStore((state) => state.chartEpoch);
   const points = useMemo(() => {
+    void epoch;
     const window = historyBuffer.window(30);
     const values = window
       .map((sample) => sample[channel])
@@ -235,7 +243,14 @@ export function Sparkline({
 
   return (
     <svg viewBox="0 0 100 24" preserveAspectRatio="none" style={{ height }} className="w-full">
-      <path d={points} fill="none" stroke={color} strokeWidth="1.1" vectorEffect="non-scaling-stroke" opacity={0.9} />
+      <path
+        d={points}
+        fill="none"
+        stroke={color}
+        strokeWidth="1.1"
+        vectorEffect="non-scaling-stroke"
+        opacity={0.9}
+      />
     </svg>
   );
 }

@@ -62,8 +62,7 @@ export function SensorTable() {
       label: 'Coil temperature',
       unit: 'K',
       simulated: formatNumber(frame.magnetic.coilTemperatureK, 3),
-      measured:
-        sensors.coilTemperatureK === null ? 'SIGNAL LOST' : formatNumber(sensors.coilTemperatureK, 3),
+      measured: sensors.coilTemperatureK === null ? 'SIGNAL LOST' : formatNumber(sensors.coilTemperatureK, 3),
       measuredRaw: sensors.coilTemperatureK,
       simulatedRaw: frame.magnetic.coilTemperatureK,
       status: sensors.status.coilTemperature ?? 'OK',
@@ -73,8 +72,7 @@ export function SensorTable() {
       label: 'Coolant flow',
       unit: 'kg/s',
       simulated: formatNumber(frame.thermal.coolantFlowKgS, 1),
-      measured:
-        sensors.coolantFlowKgS === null ? 'SIGNAL LOST' : formatNumber(sensors.coolantFlowKgS, 1),
+      measured: sensors.coolantFlowKgS === null ? 'SIGNAL LOST' : formatNumber(sensors.coolantFlowKgS, 1),
       measuredRaw: sensors.coolantFlowKgS,
       simulatedRaw: frame.thermal.coolantFlowKgS,
       status: sensors.status.coolantFlow ?? 'OK',
@@ -95,8 +93,7 @@ export function SensorTable() {
       label: 'Toroidal field',
       unit: 'T',
       simulated: formatNumber(frame.magnetic.toroidalFieldT, 4),
-      measured:
-        sensors.toroidalFieldT === null ? 'SIGNAL LOST' : formatNumber(sensors.toroidalFieldT, 4),
+      measured: sensors.toroidalFieldT === null ? 'SIGNAL LOST' : formatNumber(sensors.toroidalFieldT, 4),
       measuredRaw: sensors.toroidalFieldT,
       simulatedRaw: frame.magnetic.toroidalFieldT,
       status: sensors.status.toroidalField ?? 'OK',

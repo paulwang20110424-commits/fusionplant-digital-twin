@@ -146,8 +146,12 @@ export const FAULT_DEFINITIONS: FaultDefinition[] = [
       'Diagnostic transport delay. Displayed values lag the true state, so an operator sees transients late.',
     adjustable: true,
     affectedParameters: ['All measured channels', 'Alarm timing perception'],
-    diagnosis: 'Measured values track the model with a constant delay; the offset grows with the injected severity.',
-    recoverySteps: ['Clear the latency fault.', 'Wait for the transport delay to drain before acting on fast transients.'],
+    diagnosis:
+      'Measured values track the model with a constant delay; the offset grows with the injected severity.',
+    recoverySteps: [
+      'Clear the latency fault.',
+      'Wait for the transport delay to drain before acting on fast transients.',
+    ],
   },
 ];
 

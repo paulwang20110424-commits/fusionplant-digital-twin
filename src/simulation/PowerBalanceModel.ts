@@ -65,7 +65,12 @@ export function computePowerBalance(input: PowerBalanceInput, plasmaEnergyMJ: nu
 
   const loads = plantLoads(input);
   const plantAuxiliaryMW =
-    loads.heating + loads.magnets + loads.cryogenics + loads.coolantPumps + loads.vacuumPumps + loads.controls;
+    loads.heating +
+    loads.magnets +
+    loads.cryogenics +
+    loads.coolantPumps +
+    loads.vacuumPumps +
+    loads.controls;
 
   const netElectricMW = electricalOutputMW - plantAuxiliaryMW;
 

@@ -75,7 +75,12 @@ export function ChartExportButton({ label = 'CSV' }: { label?: string }) {
   };
 
   return (
-    <button type="button" className="btn btn-xs" onClick={handleExport} title="Export this chart window to CSV">
+    <button
+      type="button"
+      className="btn btn-xs"
+      onClick={handleExport}
+      title="Export this chart window to CSV"
+    >
       {label}
     </button>
   );

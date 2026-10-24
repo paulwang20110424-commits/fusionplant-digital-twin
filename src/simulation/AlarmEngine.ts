@@ -10,8 +10,7 @@ interface Rule {
   cooldownS: number;
 }
 
-const fmt = (value: number, digits = 2): string =>
-  Number.isFinite(value) ? value.toFixed(digits) : 'N/A';
+const fmt = (value: number, digits = 2): string => (Number.isFinite(value) ? value.toFixed(digits) : 'N/A');
 
 /**
  * AlarmEngine — rule-based supervision of the simulated plant.
@@ -57,7 +56,9 @@ export class AlarmEngine {
       source: 'PLASMA',
       cooldownS: 30,
       test: (f) =>
-        f.status === 'RUNNING' && f.plasma.temperatureKeV < LIMITS.temperatureMinKeV && f.heating.totalDeliveredMW > 5
+        f.status === 'RUNNING' &&
+        f.plasma.temperatureKeV < LIMITS.temperatureMinKeV &&
+        f.heating.totalDeliveredMW > 5
           ? {
               message: 'Plasma heating below burn threshold (possible radiative collapse)',
               value: `${fmt(f.plasma.temperatureKeV, 3)} keV`,

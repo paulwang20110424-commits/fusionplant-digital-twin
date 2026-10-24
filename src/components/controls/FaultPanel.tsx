@@ -30,7 +30,12 @@ function ActiveFaultCard({ id }: { id: string }) {
             severity {(fault.severity * 100).toFixed(0)}% · injected T+{fault.injectedAtS.toFixed(1)}s
           </div>
         </div>
-        <button type="button" className="btn btn-xs" onClick={() => clearFault(fault.id)}>
+        <button
+          type="button"
+          className="btn btn-xs"
+          onClick={() => clearFault(fault.id)}
+          aria-label={`Clear fault ${definition.name}`}
+        >
           CLEAR
         </button>
       </div>
@@ -92,7 +97,7 @@ export function FaultPanel({ compact = false }: { compact?: boolean }) {
   const available = compact ? FAULT_DEFINITIONS.slice(0, 4) : FAULT_DEFINITIONS;
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2" data-demo="fault-panel">
       <div className="flex items-center justify-between gap-2">
         <span className="inline-flex items-center gap-1.5 text-[9px] tracking-[0.16em] text-amber-300/90">
           <span className={`led ${active.length ? 'text-crit led-pulse' : 'text-ok'}`} />
@@ -104,6 +109,7 @@ export function FaultPanel({ compact = false }: { compact?: boolean }) {
           onClick={clearAllFaults}
           disabled={!active.length}
           title="Clear every injected fault"
+          aria-label="Clear all active faults"
         >
           CLEAR ALL
         </button>
@@ -139,6 +145,11 @@ export function FaultPanel({ compact = false }: { compact?: boolean }) {
           value={severity}
           onChange={(event) => setSeverity(Number(event.target.value))}
           className="accent-warn"
+          aria-label="Fault injection severity"
+          aria-valuemin={5}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(severity * 100)}
+          aria-valuetext={`${(severity * 100).toFixed(0)} percent severity`}
         />
         <div className="flex gap-1">
           {SEVERITY_PRESETS.map((preset) => (
@@ -176,6 +187,11 @@ export function FaultPanel({ compact = false }: { compact?: boolean }) {
                 disabled={isActive || injectionPaused}
                 onClick={() => injectFault(definition.kind as FaultKind, severity)}
                 title={definition.description}
+                aria-label={
+                  isActive
+                    ? `${definition.name} is already active`
+                    : `Inject ${definition.name} at ${(severity * 100).toFixed(0)} percent severity`
+                }
               >
                 {isActive ? 'ACTIVE' : 'INJECT'}
               </button>

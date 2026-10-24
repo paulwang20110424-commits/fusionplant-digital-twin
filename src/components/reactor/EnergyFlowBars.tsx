@@ -53,7 +53,11 @@ export function EnergyFlowBars() {
 
   const generationSegments: Segment[] = [
     { label: 'Gross electric', value: power.electricalOutputMW, color: '#34d399' },
-    { label: 'Rejected heat', value: Math.max(0, power.thermalOutputMW - power.electricalOutputMW), color: '#334155' },
+    {
+      label: 'Rejected heat',
+      value: Math.max(0, power.thermalOutputMW - power.electricalOutputMW),
+      color: '#334155',
+    },
   ];
 
   const loadSegments: Segment[] = [
@@ -66,7 +70,10 @@ export function EnergyFlowBars() {
   ];
 
   const netPositive = power.netElectricMW >= 0;
-  const netMagnitude = Math.min(100, (Math.abs(power.netElectricMW) / Math.max(power.plantAuxiliaryMW, 1)) * 100);
+  const netMagnitude = Math.min(
+    100,
+    (Math.abs(power.netElectricMW) / Math.max(power.plantAuxiliaryMW, 1)) * 100,
+  );
 
   return (
     <div className="flex flex-col gap-3">
@@ -74,7 +81,11 @@ export function EnergyFlowBars() {
         <div className="mb-1 flex items-baseline justify-between">
           <span className="label">Thermal → electrical conversion</span>
           <span className="num text-[9px] text-faint">
-            {formatNumber(power.thermalOutputMW, 0)} MWth in · η {power.thermalOutputMW > 1 ? ((power.electricalOutputMW / power.thermalOutputMW) * 100).toFixed(1) : '0.0'}%
+            {formatNumber(power.thermalOutputMW, 0)} MWth in · η{' '}
+            {power.thermalOutputMW > 1
+              ? ((power.electricalOutputMW / power.thermalOutputMW) * 100).toFixed(1)
+              : '0.0'}
+            %
           </span>
         </div>
         <StackedBar segments={generationSegments} unit="MW" />
@@ -83,7 +94,9 @@ export function EnergyFlowBars() {
       <div>
         <div className="mb-1 flex items-baseline justify-between">
           <span className="label">On-site electrical recirculation</span>
-          <span className="num text-[9px] text-faint">{formatNumber(power.plantAuxiliaryMW, 1)} MWe total</span>
+          <span className="num text-[9px] text-faint">
+            {formatNumber(power.plantAuxiliaryMW, 1)} MWe total
+          </span>
         </div>
         <StackedBar segments={loadSegments} unit="MW" digits={1} />
       </div>
@@ -109,7 +122,9 @@ export function EnergyFlowBars() {
             }}
           />
           <span className="absolute inset-x-0 text-center text-[8px] tracking-[0.2em] text-white/50">
-            {power.qEngineering === null ? 'Q_ENGINEERING N/A' : `Q_ENGINEERING ${power.qEngineering.toFixed(2)}`}
+            {power.qEngineering === null
+              ? 'Q_ENGINEERING N/A'
+              : `Q_ENGINEERING ${power.qEngineering.toFixed(2)}`}
           </span>
         </div>
       </div>

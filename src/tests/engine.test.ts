@@ -42,7 +42,9 @@ describe('FusionSimulationEngine — transport', () => {
   });
 
   it('advances at the configured time scale', () => {
-    const engine = createEngine({ config: { ...DEFAULT_CONFIG, timeScale: 4, noiseLevel: 0, disturbanceLevel: 0 } });
+    const engine = createEngine({
+      config: { ...DEFAULT_CONFIG, timeScale: 4, noiseLevel: 0, disturbanceLevel: 0 },
+    });
     engine.start();
     engine.step(0.05);
     // 0.05 s wall * 4 = 0.2 s simulated, exactly four 50 ms integrator steps
@@ -77,8 +79,12 @@ describe('FusionSimulationEngine — transport', () => {
 
 describe('FusionSimulationEngine — causality', () => {
   it('heats the plasma when auxiliary heating is increased', () => {
-    const low = createEngine({ controls: { ...DEFAULT_CONTROLS, nbiPowerMW: 5, echPowerMW: 0, ichPowerMW: 0 } });
-    const high = createEngine({ controls: { ...DEFAULT_CONTROLS, nbiPowerMW: 50, echPowerMW: 30, ichPowerMW: 20 } });
+    const low = createEngine({
+      controls: { ...DEFAULT_CONTROLS, nbiPowerMW: 5, echPowerMW: 0, ichPowerMW: 0 },
+    });
+    const high = createEngine({
+      controls: { ...DEFAULT_CONTROLS, nbiPowerMW: 50, echPowerMW: 30, ichPowerMW: 20 },
+    });
     const lowSeries = runFor(low, 120);
     const highSeries = runFor(high, 120);
     const lowFinal = lowSeries[lowSeries.length - 1];
@@ -162,7 +168,9 @@ describe('FusionSimulationEngine — numeric safety', () => {
 
   it('is deterministic for a given seed and divergent for another seed', () => {
     const make = (seed: number) => {
-      const engine = createEngine({ config: { ...DEFAULT_CONFIG, seed, noiseLevel: 0.5, disturbanceLevel: 0.5 } });
+      const engine = createEngine({
+        config: { ...DEFAULT_CONFIG, seed, noiseLevel: 0.5, disturbanceLevel: 0.5 },
+      });
       return runFor(engine, 60);
     };
     const a = make(1234);
@@ -252,7 +260,12 @@ describe('FusionSimulationEngine — supervision & events', () => {
     engine.setControl('nbiPowerMW', 40);
     engine.injectFault('VACUUM_LEAK', 0.4);
     engine.pause();
-    expect(events.some((event) => event.message.includes('simulation started', 0) || event.message.includes('Simulation started'))).toBe(true);
+    expect(
+      events.some(
+        (event) =>
+          event.message.includes('simulation started', 0) || event.message.includes('Simulation started'),
+      ),
+    ).toBe(true);
     expect(events.some((event) => event.category === 'CONTROL')).toBe(true);
     expect(events.some((event) => event.category === 'FAULT')).toBe(true);
     expect(events.every((event) => Number.isFinite(event.tS))).toBe(true);
@@ -321,8 +334,7 @@ describe('scenario headless runs', () => {
 });
 
 describe('HistoryBuffer', () => {
-  const sample = (t: number): HistorySample =>
-    ({ t, wallMs: 0 } as HistorySample);
+  const sample = (t: number): HistorySample => ({ t, wallMs: 0 }) as HistorySample;
 
   it('retains insertion order and enforces capacity', () => {
     // The buffer enforces a 60-sample floor so small windows still render charts.

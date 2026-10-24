@@ -152,8 +152,7 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
-    background:
-      linear-gradient(180deg, rgba(11, 25, 41, 0.92) 0%, rgba(6, 14, 25, 0.94) 100%);
+    background: linear-gradient(180deg, rgba(11, 25, 41, 0.92) 0%, rgba(6, 14, 25, 0.94) 100%);
     border: 1px solid var(--color-edge);
     border-radius: 3px;
     box-shadow:
@@ -264,7 +263,11 @@
     letter-spacing: 0.09em;
     text-transform: uppercase;
     font-weight: 600;
-    transition: background 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
+    transition:
+      background 120ms ease,
+      border-color 120ms ease,
+      color 120ms ease,
+      box-shadow 120ms ease;
     white-space: nowrap;
   }
 
@@ -320,7 +323,9 @@
     font-family: var(--font-mono);
     font-size: 11.5px;
     outline: none;
-    transition: border-color 120ms ease, box-shadow 120ms ease;
+    transition:
+      border-color 120ms ease,
+      box-shadow 120ms ease;
   }
 
   .field:focus {
@@ -534,5 +539,50 @@
   .flow-dash,
   .slow-spin {
     animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------
+   Accessibility helpers
+   --------------------------------------------------------------- */
+
+/* Keyboard focus is always visible, and never shown for mouse clicks. */
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid #22d3ee;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Skip link: hidden until focused by the keyboard. */
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -60px;
+  z-index: 100;
+  padding: 6px 12px;
+  background: #08131f;
+  border: 1px solid #22d3ee;
+  border-radius: 2px;
+  color: #c8f6ff;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: top 120ms ease;
+}
+
+.skip-link:focus {
+  top: 6px;
+}
+
+/* Respect the user's motion preference for the animated console chrome. */
+@media (prefers-reduced-motion: reduce) {
+  .led-pulse,
+  .critical-flash,
+  .flow-dash,
+  .slow-spin {
+    animation: none !important;
+  }
+  * {
+    scroll-behavior: auto !important;
   }
 }

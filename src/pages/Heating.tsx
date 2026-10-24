@@ -21,7 +21,16 @@ interface SystemCardProps {
   color: string;
 }
 
-function HeatingSystemCard({ name, code, commanded, delivered, wallPlug, coupling, status, color }: SystemCardProps) {
+function HeatingSystemCard({
+  name,
+  code,
+  commanded,
+  delivered,
+  wallPlug,
+  coupling,
+  status,
+  color,
+}: SystemCardProps) {
   const deliveredPct = commanded > 0 ? Math.min(100, (delivered / commanded) * 100) : 0;
   const maxBar = Math.max(commanded, 1);
 
@@ -34,7 +43,7 @@ function HeatingSystemCard({ name, code, commanded, delivered, wallPlug, couplin
             <span className="text-[10.5px] text-ink">{name}</span>
           </div>
           <div className="num mt-0.5 text-[8.5px] text-faint">
-            η_couple {(coupling * 100).toFixed(0)}% · wall-plug {(wallPlug).toFixed(0)} MW
+            η_couple {(coupling * 100).toFixed(0)}% · wall-plug {wallPlug.toFixed(0)} MW
           </div>
         </div>
         <StatusChip status={status} />
@@ -49,7 +58,10 @@ function HeatingSystemCard({ name, code, commanded, delivered, wallPlug, couplin
       </div>
 
       <div className="relative mt-1 h-2 w-full overflow-hidden rounded-sm bg-white/[0.05]">
-        <div className="absolute inset-y-0 left-0 bg-white/[0.06]" style={{ width: `${(commanded / maxBar) * 100}%` }} />
+        <div
+          className="absolute inset-y-0 left-0 bg-white/[0.06]"
+          style={{ width: `${(commanded / maxBar) * 100}%` }}
+        />
         <div
           className="absolute inset-y-0 left-0 rounded-sm transition-[width] duration-300"
           style={{ width: `${deliveredPct}%`, background: `linear-gradient(90deg, ${color}44, ${color})` }}
@@ -102,25 +114,43 @@ export function Heating() {
             <ParameterTable
               dense
               rows={[
-                { label: 'Total delivered', value: formatNumber(heating.totalDeliveredMW, 1), unit: 'MW', highlight: 'fusion' },
-                { label: 'Wall-plug draw', value: formatNumber(heating.wallPlugMW, 1), unit: 'MW', highlight: 'warn' },
+                {
+                  label: 'Total delivered',
+                  value: formatNumber(heating.totalDeliveredMW, 1),
+                  unit: 'MW',
+                  highlight: 'fusion',
+                },
+                {
+                  label: 'Wall-plug draw',
+                  value: formatNumber(heating.wallPlugMW, 1),
+                  unit: 'MW',
+                  highlight: 'warn',
+                },
                 {
                   label: 'Waste heat recovered',
-                  value: formatNumber(Math.max(0, heating.wallPlugMW - heating.totalDeliveredMW) * frame.config.auxHeatRecovery, 1),
+                  value: formatNumber(
+                    Math.max(0, heating.wallPlugMW - heating.totalDeliveredMW) * frame.config.auxHeatRecovery,
+                    1,
+                  ),
                   unit: 'MW',
                 },
                 { label: 'Plasma absorption', value: (deliveryRatio * 100).toFixed(0), unit: '%' },
                 { label: 'Fusion power', value: formatNumber(frame.power.fusionPowerMW, 1), unit: 'MW' },
-                { label: 'Q_plasma', value: formatNumber(frame.power.qPlasma, 2), unit: '—', highlight: 'fusion' },
+                {
+                  label: 'Q_plasma',
+                  value: formatNumber(frame.power.qPlasma, 2),
+                  unit: '—',
+                  highlight: 'fusion',
+                },
               ]}
             />
           </Panel>
 
           <Panel title="Control Notes" className="min-h-[120px] flex-1" bodyClassName="!p-2">
             <p className="text-[9px] leading-snug text-muted">
-              The delivered power responds to the setpoint through the coupling efficiency, while the electrical
-              demand responds through the source efficiency. A HEATING_DROOP fault multiplies availability, so the
-              gap between command and delivery widens and the plasma cools.
+              The delivered power responds to the setpoint through the coupling efficiency, while the
+              electrical demand responds through the source efficiency. A HEATING_DROOP fault multiplies
+              availability, so the gap between command and delivery widens and the plasma cools.
             </p>
           </Panel>
         </div>
@@ -200,9 +230,10 @@ export function Heating() {
           </Panel>
 
           <Callout tone="warn" title="Why Q_engineering differs from Q_plasma">
-            Neutral beam injection is roughly 35% wall-plug efficient in this model. At {formatNumber(controls.nbiPowerMW, 0)} MW
-            commanded the beamline draws {formatNumber(controls.nbiPowerMW / HEATING_EFFICIENCY.nbiWallPlug, 0)} MW from
-            the grid, so recirculating power is a first-order term in the plant energy balance.
+            Neutral beam injection is roughly 35% wall-plug efficient in this model. At{' '}
+            {formatNumber(controls.nbiPowerMW, 0)} MW commanded the beamline draws{' '}
+            {formatNumber(controls.nbiPowerMW / HEATING_EFFICIENCY.nbiWallPlug, 0)} MW from the grid, so
+            recirculating power is a first-order term in the plant energy balance.
           </Callout>
 
           <Callout tone="info" title="Model boundary">
@@ -214,11 +245,23 @@ export function Heating() {
             <ParameterTable
               dense
               rows={[
-                { label: 'Heating electrical load', value: formatNumber(frame.power.loads.heating, 1), unit: 'MW' },
+                {
+                  label: 'Heating electrical load',
+                  value: formatNumber(frame.power.loads.heating, 1),
+                  unit: 'MW',
+                },
                 { label: 'Magnet supplies', value: formatNumber(frame.power.loads.magnets, 1), unit: 'MW' },
                 { label: 'Cryogenics', value: formatNumber(frame.power.loads.cryogenics, 1), unit: 'MW' },
-                { label: 'Coolant pumps', value: formatNumber(frame.power.loads.coolantPumps, 1), unit: 'MW' },
-                { label: 'Total plant auxiliary', value: formatNumber(frame.power.plantAuxiliaryMW, 1), unit: 'MW' },
+                {
+                  label: 'Coolant pumps',
+                  value: formatNumber(frame.power.loads.coolantPumps, 1),
+                  unit: 'MW',
+                },
+                {
+                  label: 'Total plant auxiliary',
+                  value: formatNumber(frame.power.plantAuxiliaryMW, 1),
+                  unit: 'MW',
+                },
               ]}
             />
           </Panel>

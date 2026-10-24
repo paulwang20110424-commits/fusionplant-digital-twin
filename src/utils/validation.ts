@@ -17,9 +17,15 @@ export interface ValidationResult {
  */
 export function validateControl(key: keyof ControlInputs, raw: number): ValidationResult {
   const spec = CONTROL_SPEC_MAP[key];
-  if (!spec) return { valid: false, value: 0, message: `Unknown parameter ${String(key)}`, severity: 'error' };
+  if (!spec)
+    return { valid: false, value: 0, message: `Unknown parameter ${String(key)}`, severity: 'error' };
   if (!Number.isFinite(raw)) {
-    return { valid: false, value: spec.min, message: `${spec.label} must be a finite number`, severity: 'error' };
+    return {
+      valid: false,
+      value: spec.min,
+      message: `${spec.label} must be a finite number`,
+      severity: 'error',
+    };
   }
   if (raw < spec.min) {
     return {

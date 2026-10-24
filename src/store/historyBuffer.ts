@@ -135,6 +135,10 @@ interface StoredSession {
   name: string;
   createdAt: number;
   scenarioName: string;
+  runId?: string;
+  randomSeed?: number;
+  appVersion?: string;
+  modelVersion?: string;
   channels: string[];
   rows: Row[];
   events: PersistedSession['events'];
@@ -226,6 +230,10 @@ export function loadSession(id: string): PersistedSession | null {
     name: stored.name,
     createdAt: stored.createdAt,
     scenarioName: stored.scenarioName,
+    runId: stored.runId,
+    randomSeed: stored.randomSeed,
+    appVersion: stored.appVersion,
+    modelVersion: stored.modelVersion,
     samples: decodeSamples(stored.rows, stored.channels),
     events: stored.events ?? [],
     alarms: stored.alarms ?? [],
@@ -256,6 +264,10 @@ export function saveSession(session: PersistedSession): SaveResult {
     name: session.name,
     createdAt: session.createdAt,
     scenarioName: session.scenarioName,
+    runId: session.runId,
+    randomSeed: session.randomSeed,
+    appVersion: session.appVersion,
+    modelVersion: session.modelVersion,
     channels: CHANNEL_ORDER as string[],
     rows: encodeSamples(downsample(session.samples)),
     events: session.events.slice(-150),
@@ -290,6 +302,20 @@ export function saveSession(session: PersistedSession): SaveResult {
     }
   }
   return { ok: false, error: 'Storage quota exceeded even after evicting older sessions.' };
+}
+
+export function renameSession(id: string, name: string): boolean {
+  if (!storageAvailable()) return false;
+  const sessions = readRaw();
+  const target = sessions.find((session) => session.id === id);
+  if (!target) return false;
+  target.name = name.trim().slice(0, 80) || target.name;
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function deleteSession(id: string): boolean {

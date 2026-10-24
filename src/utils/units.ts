@@ -64,7 +64,8 @@ export function formatPercent(value: number | null | undefined, digits = 0): str
 
 /** Wall-clock style duration: 00:03:24. */
 export function formatClock(totalSeconds: number | null | undefined): string {
-  if (totalSeconds === null || totalSeconds === undefined || !Number.isFinite(totalSeconds)) return '--:--:--';
+  if (totalSeconds === null || totalSeconds === undefined || !Number.isFinite(totalSeconds))
+    return '--:--:--';
   const safe = Math.max(0, Math.floor(totalSeconds));
   const hours = Math.floor(safe / 3600);
   const minutes = Math.floor((safe % 3600) / 60);
@@ -74,7 +75,8 @@ export function formatClock(totalSeconds: number | null | undefined): string {
 
 /** Simulated-clock label, e.g. "T+ 00:03:24.5". */
 export function formatSimClock(totalSeconds: number | null | undefined): string {
-  if (totalSeconds === null || totalSeconds === undefined || !Number.isFinite(totalSeconds)) return 'T+ --:--.--';
+  if (totalSeconds === null || totalSeconds === undefined || !Number.isFinite(totalSeconds))
+    return 'T+ --:--.--';
   const safe = Math.max(0, totalSeconds);
   const hours = Math.floor(safe / 3600);
   const minutes = Math.floor((safe % 3600) / 60);

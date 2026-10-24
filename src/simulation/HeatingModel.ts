@@ -1,4 +1,4 @@
-import { DYNAMICS, HEATING_EFFICIENCY, MACHINE } from './constants';
+import { HEATING_EFFICIENCY, MACHINE } from './constants';
 import type { ControlInputs, HeatingState } from '@/types/simulation';
 import { clamp, safeDiv } from '@/utils/math';
 
@@ -23,9 +23,12 @@ export function computeHeatingDelivery(
   controls: ControlInputs,
   availability: { nbi: number; ech: number; ich: number } = { nbi: 1, ech: 1, ich: 1 },
 ): HeatingDelivery {
-  const nbi = clamp(controls.nbiPowerMW, 0, 80) * HEATING_EFFICIENCY.nbiCoupling * clamp(availability.nbi, 0, 1);
-  const ech = clamp(controls.echPowerMW, 0, 60) * HEATING_EFFICIENCY.echCoupling * clamp(availability.ech, 0, 1);
-  const ich = clamp(controls.ichPowerMW, 0, 60) * HEATING_EFFICIENCY.ichCoupling * clamp(availability.ich, 0, 1);
+  const nbi =
+    clamp(controls.nbiPowerMW, 0, 80) * HEATING_EFFICIENCY.nbiCoupling * clamp(availability.nbi, 0, 1);
+  const ech =
+    clamp(controls.echPowerMW, 0, 60) * HEATING_EFFICIENCY.echCoupling * clamp(availability.ech, 0, 1);
+  const ich =
+    clamp(controls.ichPowerMW, 0, 60) * HEATING_EFFICIENCY.ichCoupling * clamp(availability.ich, 0, 1);
 
   const wallPlugMW =
     clamp(controls.nbiPowerMW, 0, 80) / HEATING_EFFICIENCY.nbiWallPlug +
@@ -87,8 +90,7 @@ export function effectiveCoupling(delivery: HeatingDelivery): number {
 }
 
 export const HEATING_MODEL_NOTES = {
-  delivered:
-    'P_del = P_set * eta_coupling * availability; eta_coupling = 0.85 (NBI), 0.82 (ECH), 0.76 (ICH)',
+  delivered: 'P_del = P_set * eta_coupling * availability; eta_coupling = 0.85 (NBI), 0.82 (ECH), 0.76 (ICH)',
   wallPlug: 'P_grid = P_set / eta_source; eta_source = 0.35 (NBI), 0.50 (ECH), 0.60 (ICH)',
   wasteHeat: 'P_waste = (P_grid - P_del) * heatRecovery, added to the primary coolant loop',
   turbines: `Turbine on line when thermal duty > ${MACHINE.turbineMinThermalMW} MW and the heat exchanger is available`,

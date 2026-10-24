@@ -264,7 +264,10 @@ describe('export utilities', () => {
   it('leaves undefined gains empty in CSV output', () => {
     const sample = { ...makeSample(1), qPlasma: null, qEngineering: null };
     const csv = samplesToCSV([sample]);
-    const row = csv.trim().split('\n').find((line) => /^\d/.test(line))!;
+    const row = csv
+      .trim()
+      .split('\n')
+      .find((line) => /^\d/.test(line))!;
     const cells = row.split(',');
     const qIndex = CSV_COLUMNS.findIndex((column) => column.key === 'qPlasma');
     expect(cells[qIndex]).toBe('');

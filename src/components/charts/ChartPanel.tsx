@@ -2,7 +2,15 @@ import { useMemo } from 'react';
 import type { EChartsOption } from 'echarts';
 import { historyBuffer, useSimulationStore } from '@/store/simulationStore';
 import { EChart } from './EChart';
-import { CHART_COLORS, NO_ANIMATION, axisStyle, gridStyle, legendStyle, timeAxis, tooltipStyle } from './chartTheme';
+import {
+  CHART_COLORS,
+  NO_ANIMATION,
+  axisStyle,
+  gridStyle,
+  legendStyle,
+  timeAxis,
+  tooltipStyle,
+} from './chartTheme';
 import { Panel } from '@/components/ui/Panel';
 import { TrendChart } from './TrendChart';
 import { ChartExportButton } from './ChartToolbar';
@@ -46,12 +54,18 @@ export function ChartPanel({ config, className = '', height = '100%', showZoom =
 export function CorrelationScatter({ className = '' }: { className?: string }) {
   const epoch = useSimulationStore((state) => state.chartEpoch);
   const windowSec = useSimulationStore((state) => state.chartWindowSec);
-  const samples = useMemo(() => historyBuffer.window(windowSec), [epoch, windowSec]);
+  const samples = useMemo(() => {
+    // `epoch` changes on every chart tick; touching it forces a fresh window.
+    void epoch;
+    return historyBuffer.window(windowSec);
+  }, [epoch, windowSec]);
 
   const { option, correlation, count } = useMemo(() => {
     const points = samples
       .filter((sample) => Number.isFinite(sample.temperature) && Number.isFinite(sample.fusionPower))
-      .map((sample) => [sample.temperature, sample.fusionPower, sample.stability] as [number, number, number]);
+      .map(
+        (sample) => [sample.temperature, sample.fusionPower, sample.stability] as [number, number, number],
+      );
 
     if (points.length < 3) {
       return {
@@ -109,7 +123,12 @@ export function CorrelationScatter({ className = '' }: { className?: string }) {
           data: points.map(([x, y, stability]) => ({
             value: [x, y, stability],
             itemStyle: {
-              color: stability > 0.8 ? CHART_COLORS.temperature : stability > 0.6 ? CHART_COLORS.heating : CHART_COLORS.auxiliary,
+              color:
+                stability > 0.8
+                  ? CHART_COLORS.temperature
+                  : stability > 0.6
+                    ? CHART_COLORS.heating
+                    : CHART_COLORS.auxiliary,
               opacity: 0.65,
             },
           })),
@@ -172,7 +191,9 @@ export function CompactTrend({
   rightUnit?: string;
   height?: number;
 }) {
-  return <TrendChart series={series} leftUnit={leftUnit} rightUnit={rightUnit} height={height} showZoom={false} />;
+  return (
+    <TrendChart series={series} leftUnit={leftUnit} rightUnit={rightUnit} height={height} showZoom={false} />
+  );
 }
 
 export { timeAxis };

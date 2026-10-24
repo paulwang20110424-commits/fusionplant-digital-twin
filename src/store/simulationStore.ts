@@ -21,8 +21,17 @@ import { FusionSimulationEngine } from '@/simulation/FusionSimulationEngine';
 import { DEFAULT_CONFIG, DEFAULT_CONTROLS, SCENARIO_DEFINITIONS } from '@/simulation/controlSpecs';
 import { getScenario, runScenario, compareScenarios } from '@/simulation/scenarios';
 import { validateConfig, validateControl } from '@/utils/validation';
-import { historyBuffer, deleteSession as removeStoredSession, listSessions, loadSession, saveSession as persistSession, storageUsage } from './historyBuffer';
+import {
+  historyBuffer,
+  deleteSession as removeStoredSession,
+  listSessions,
+  loadSession,
+  renameSession as renameStoredSession,
+  saveSession as persistSession,
+  storageUsage,
+} from './historyBuffer';
 import { CHART_HZ, HISTORY_CAPACITY, PUBLISH_HZ } from '@/simulation/constants';
+import { APP_VERSION, MODEL_VERSION } from '@/config/version';
 import { HistoryBuffer } from './historyBuffer';
 
 export type PageId =
@@ -172,7 +181,11 @@ export interface SimulationStore {
   exportCurrentSession: (name: string) => void;
   refreshSessions: () => void;
   removeSession: (id: string) => void;
+  renameSession: (id: string, name: string) => void;
+  importSession: (session: PersistedSession) => void;
   readSession: (id: string) => PersistedSession | null;
+  reproduceRun: () => void;
+  runConfiguration: () => Record<string, unknown>;
 
   setPage: (page: PageId) => void;
   setSelectedComponent: (id: ReactorComponentId) => void;
@@ -628,6 +641,87 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
 
   readSession: (id) => loadSession(id),
 
+  renameSession: (id, name) => {
+    const ok = renameStoredSession(id, name);
+    get().refreshSessions();
+    get().pushToast(ok ? 'Session renamed.' : 'Could not rename the session.', ok ? 'success' : 'critical');
+  },
+
+  importSession: (session) => {
+    const result = persistSession(session);
+    get().refreshSessions();
+    if (result.ok) {
+      get().appendEvent({
+        id: `evt-import-${Date.now()}`,
+        tS: 0,
+        wallMs: Date.now(),
+        category: 'EXPORT',
+        level: 'INFO',
+        message: `Imported session: ${session.name}`,
+        detail: `${session.sampleCount} samples · schema-compatible import`,
+      });
+      get().pushToast(`Imported "${session.name}" (${session.sampleCount} samples).`, 'success');
+    } else {
+      get().pushToast(result.error ?? 'Import failed.', 'critical');
+    }
+  },
+
+  /** Restart the current configuration with the same seed and initial state. */
+  reproduceRun: () => {
+    const engine = simulationEngine;
+    engine.reset(undefined, engine.scenarioName);
+    historyBuffer.clear();
+    set({
+      events: [],
+      faults: [],
+      alarms: [],
+      raisedAlarms: 0,
+      sampleCount: 0,
+      autoPauseArmed: true,
+      whatIfBaseline: null,
+      whatIfVariant: null,
+      comparison: [],
+    });
+    engine.start();
+    get().publish();
+    get().bumpChart();
+    get().appendEvent({
+      id: `evt-reproduce-${Date.now()}`,
+      tS: 0,
+      wallMs: Date.now(),
+      category: 'SIM',
+      level: 'INFO',
+      message: 'Run reproduced from the current configuration',
+      detail: `runId ${engine.runId} · seed ${engine.config.seed} · scenario ${engine.scenarioName}`,
+    });
+    get().pushToast(`Reproducing run ${engine.runId} (seed ${engine.config.seed}).`, 'success');
+  },
+
+  /** Everything needed to reproduce the current run, as a plain object. */
+  runConfiguration: () => {
+    const engine = simulationEngine;
+    return {
+      appVersion: APP_VERSION,
+      modelVersion: MODEL_VERSION,
+      runId: engine.runId,
+      randomSeed: engine.config.seed,
+      scenario: engine.scenarioName,
+      timeScale: engine.config.timeScale,
+      runDurationS: engine.config.runDurationS,
+      controls: { ...engine.controls },
+      initialConditions: { ...engine.initial },
+      config: { ...engine.config },
+      activeFaults: engine
+        .faultHistory()
+        .filter((fault) => fault.active)
+        .map((fault) => ({
+          kind: fault.kind,
+          severity: fault.severity,
+          injectedAtS: fault.injectedAtS,
+        })),
+    };
+  },
+
   /* ---------------- ui ---------------- */
 
   setPage: (page) => set({ activePage: page }),
@@ -638,16 +732,17 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
   toggleStructure: (id) => {
     const hidden = get().hiddenStructures;
     set({
-      hiddenStructures: hidden.includes(id)
-        ? hidden.filter((entry) => entry !== id)
-        : [...hidden, id],
+      hiddenStructures: hidden.includes(id) ? hidden.filter((entry) => entry !== id) : [...hidden, id],
     });
   },
   setAllStructures: (hidden) => set({ hiddenStructures: hidden }),
   setChartWindow: (seconds) => set({ chartWindowSec: seconds }),
   toggleChartsPaused: () => {
     set({ chartsPaused: !get().chartsPaused });
-    get().pushToast(get().chartsPaused ? 'Chart refresh paused (simulation continues).' : 'Chart refresh resumed.', 'info');
+    get().pushToast(
+      get().chartsPaused ? 'Chart refresh paused (simulation continues).' : 'Chart refresh resumed.',
+      'info',
+    );
   },
   setFullscreen: (value) => set({ fullscreen: value }),
   clearValidation: () => set({ lastValidation: null }),
@@ -660,7 +755,8 @@ export function compactSeries<T>(samples: T[], maxPoints: number): T[] {
   if (samples.length <= maxPoints) return samples;
   const stride = samples.length / maxPoints;
   const result: T[] = [];
-  for (let i = 0; i < maxPoints; i += 1) result.push(samples[Math.min(samples.length - 1, Math.floor(i * stride))]);
+  for (let i = 0; i < maxPoints; i += 1)
+    result.push(samples[Math.min(samples.length - 1, Math.floor(i * stride))]);
   return result;
 }
 

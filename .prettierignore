@@ -1,0 +1,6 @@
+dist
+node_modules
+.smoke
+coverage
+package-lock.json
+docs/screenshots

@@ -2,7 +2,9 @@ import { lazy, Suspense, useEffect } from 'react';
 import { TopStatusBar } from '@/components/layout/TopStatusBar';
 import { NavBar } from '@/components/layout/NavBar';
 import { ToastStack } from '@/components/ui/ToastStack';
+import { GuidedDemoLauncher, GuidedDemoOverlay } from '@/components/demo/GuidedDemoOverlay';
 import { startSimulationRuntime, simulationEngine, useSimulationStore } from '@/store/simulationStore';
+import { useUrlSync } from '@/hooks/useUrlSync';
 import { historyBuffer } from '@/store/historyBuffer';
 import type { PageId } from '@/store/simulationStore';
 // Route-level code splitting: the console shell paints immediately and each
@@ -15,7 +17,9 @@ const MagneticField = lazy(() =>
 const Heating = lazy(() => import('@/pages/Heating').then((module) => ({ default: module.Heating })));
 const Cooling = lazy(() => import('@/pages/Cooling').then((module) => ({ default: module.Cooling })));
 const PowerGrid = lazy(() => import('@/pages/PowerGrid').then((module) => ({ default: module.PowerGrid })));
-const Diagnostics = lazy(() => import('@/pages/Diagnostics').then((module) => ({ default: module.Diagnostics })));
+const Diagnostics = lazy(() =>
+  import('@/pages/Diagnostics').then((module) => ({ default: module.Diagnostics })),
+);
 const SimulationLab = lazy(() =>
   import('@/pages/SimulationLab').then((module) => ({ default: module.SimulationLab })),
 );
@@ -62,6 +66,7 @@ function renderPage(page: PageId) {
 
 export default function App() {
   const activePage = useSimulationStore((state) => state.activePage);
+  useUrlSync();
 
   useEffect(() => {
     const stop = startSimulationRuntime();
@@ -81,11 +86,16 @@ export default function App() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-void text-ink">
+      <a href="#main-console" className="skip-link">
+        Skip to main console content
+      </a>
       <TopStatusBar />
       <NavBar />
-      <main className="min-h-0 flex-1 overflow-hidden">
+      <main id="main-console" tabIndex={-1} className="min-h-0 flex-1 overflow-hidden focus:outline-none">
         <Suspense fallback={<LoadingPanel page={activePage} />}>{renderPage(activePage)}</Suspense>
       </main>
+      <GuidedDemoOverlay />
+      <GuidedDemoLauncher />
       <ToastStack />
     </div>
   );

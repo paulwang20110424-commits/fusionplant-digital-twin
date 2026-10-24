@@ -1,7 +1,7 @@
 {
   "name": "fusionplant-digital-twin",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.2.0",
   "type": "module",
   "description": "FusionPlant Digital Twin - interactive simulated fusion plant control platform (educational, simulated data only)",
   "scripts": {
@@ -13,7 +13,16 @@
     "typecheck": "tsc --noEmit",
     "audit": "node scripts/audit.mjs",
     "audit:tablet": "node scripts/audit.mjs http://127.0.0.1:5174/ 1024 768",
-    "verify": "npm run typecheck && npm run test && npm run build"
+    "verify": "npm run version:check && npm run check:assets && npm run typecheck && npm run lint && npm run format:check && npm run test && npm run build",
+    "version:check": "node scripts/check-version.mjs",
+    "lint": "eslint . --max-warnings=0",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"scripts/**/*.mjs\" \"*.{json,md,yml}\" \".github/**/*.yml\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"scripts/**/*.mjs\" \"*.{json,md,yml}\" \".github/**/*.yml\"",
+    "test:a11y": "node scripts/a11y.mjs",
+    "stats": "node scripts/build-stats.mjs",
+    "check:assets": "node scripts/check-assets.mjs",
+    "preview:ci": "vite preview --port 5174 --strictPort"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",
@@ -25,15 +34,25 @@
     "zustand": "^5.0.16"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@types/three": "^0.186.0",
+    "@typescript-eslint/eslint-plugin": "^8.72.0",
+    "@typescript-eslint/parser": "^8.72.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "axe-core": "^4.14.0",
+    "eslint": "^9.39.5",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.7",
+    "globals": "^17.13.0",
     "playwright-core": "^1.64.1",
+    "prettier": "^3.9.10",
     "tailwindcss": "^4.3.3",
-    "typescript": "^7.0.2",
+    "typescript": "^6.0.3",
     "vite": "^8.3.5",
     "vitest": "^5.0.5"
   }

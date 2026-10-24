@@ -9,6 +9,8 @@ interface PanelProps {
   bodyClassName?: string;
   scroll?: boolean;
   dense?: boolean;
+  /** Optional anchor used by the guided demo to spotlight this panel. */
+  demoId?: string;
 }
 
 /** Standard console panel: title bar with an optional action slot, scrollable body. */
@@ -21,9 +23,10 @@ export function Panel({
   bodyClassName = '',
   scroll = true,
   dense = false,
+  demoId,
 }: PanelProps) {
   return (
-    <section className={`hud-panel corner-tick ${className}`}>
+    <section className={`hud-panel corner-tick ${className}`} data-demo={demoId}>
       <header className="hud-header">
         <div className="flex items-baseline gap-2 min-w-0">
           <h2 className="hud-title truncate">{title}</h2>

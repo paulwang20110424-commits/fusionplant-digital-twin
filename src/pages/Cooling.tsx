@@ -66,12 +66,24 @@ export function Cooling() {
                   highlight: thermal.heatExchangerLoadPct > 92 ? 'warn' : 'ok',
                 },
                 { label: 'Pump power', value: formatNumber(power.loads.coolantPumps, 1), unit: 'MW' },
-                { label: 'Rankine efficiency', value: (thermal.thermalPowerMW > 1 ? (power.electricalOutputMW / thermal.thermalPowerMW) * 100 : 0).toFixed(1), unit: '%' },
+                {
+                  label: 'Rankine efficiency',
+                  value: (thermal.thermalPowerMW > 1
+                    ? (power.electricalOutputMW / thermal.thermalPowerMW) * 100
+                    : 0
+                  ).toFixed(1),
+                  unit: '%',
+                },
               ]}
             />
           </Panel>
 
-          <Panel title="Equipment" subtitle="cooling chain" className="min-h-[130px] flex-1" bodyClassName="!p-2">
+          <Panel
+            title="Equipment"
+            subtitle="cooling chain"
+            className="min-h-[130px] flex-1"
+            bodyClassName="!p-2"
+          >
             <ParameterTable
               dense
               rows={[
@@ -138,15 +150,41 @@ export function Cooling() {
               rows={[
                 { label: 'Fusion heat', value: formatNumber(power.fusionPowerMW, 0), unit: 'MW' },
                 { label: 'Aux heating heat', value: formatNumber(power.auxiliaryHeatingMW, 1), unit: 'MW' },
-                { label: 'Recovered waste heat', value: formatNumber(Math.max(0, power.thermalOutputMW - power.fusionPowerMW - power.auxiliaryHeatingMW), 1), unit: 'MW' },
-                { label: 'Total thermal', value: formatNumber(power.thermalOutputMW, 0), unit: 'MWth', highlight: 'warn' },
-                { label: 'Gross electric', value: formatNumber(power.electricalOutputMW, 1), unit: 'MWe', highlight: 'ok' },
-                { label: 'Rejected / losses', value: formatNumber(Math.max(0, power.thermalOutputMW - power.electricalOutputMW), 0), unit: 'MW' },
+                {
+                  label: 'Recovered waste heat',
+                  value: formatNumber(
+                    Math.max(0, power.thermalOutputMW - power.fusionPowerMW - power.auxiliaryHeatingMW),
+                    1,
+                  ),
+                  unit: 'MW',
+                },
+                {
+                  label: 'Total thermal',
+                  value: formatNumber(power.thermalOutputMW, 0),
+                  unit: 'MWth',
+                  highlight: 'warn',
+                },
+                {
+                  label: 'Gross electric',
+                  value: formatNumber(power.electricalOutputMW, 1),
+                  unit: 'MWe',
+                  highlight: 'ok',
+                },
+                {
+                  label: 'Rejected / losses',
+                  value: formatNumber(Math.max(0, power.thermalOutputMW - power.electricalOutputMW), 0),
+                  unit: 'MW',
+                },
               ]}
             />
           </Panel>
 
-          <Panel title="Cooling Alarms" subtitle="live supervision" className="min-h-[170px] flex-1" bodyClassName="!p-1">
+          <Panel
+            title="Cooling Alarms"
+            subtitle="live supervision"
+            className="min-h-[170px] flex-1"
+            bodyClassName="!p-1"
+          >
             <AlarmFeed limit={5} />
           </Panel>
 
@@ -158,8 +196,8 @@ export function Cooling() {
               <li>{THERMAL_MODEL_NOTES.outlet}</li>
             </ul>
             <p className="mt-1 text-[8px] leading-snug opacity-75">
-              Two lumped temperatures with first-order lags represent the whole loop. No two-phase flow, pressure
-              dynamics or steam-cycle thermodynamics are solved.
+              Two lumped temperatures with first-order lags represent the whole loop. No two-phase flow,
+              pressure dynamics or steam-cycle thermodynamics are solved.
             </p>
           </Callout>
         </div>

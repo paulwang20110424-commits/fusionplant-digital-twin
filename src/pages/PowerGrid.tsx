@@ -43,6 +43,9 @@ export function PowerGrid() {
                 channel="electricalOutput"
                 color="#34d399"
                 status={power.electricalOutputMW > 1 ? 'ok' : 'idle'}
+                valueScale={1}
+                trendUnit="MW"
+                trendDigits={1}
               />
               <MetricTile
                 label="Net Electric"
@@ -51,23 +54,44 @@ export function PowerGrid() {
                 channel="netElectric"
                 color="#facc15"
                 status={netPositive ? 'ok' : 'warn'}
+                valueScale={1}
+                trendUnit="MW"
                 trendDigits={0}
               />
             </div>
             <ParameterTable
               dense
               rows={[
-                { label: 'Fusion power', value: formatNumber(power.fusionPowerMW, 1), unit: 'MW', highlight: 'fusion' },
-                { label: 'Aux heating (absorbed)', value: formatNumber(power.auxiliaryHeatingMW, 1), unit: 'MW' },
+                {
+                  label: 'Fusion power',
+                  value: formatNumber(power.fusionPowerMW, 1),
+                  unit: 'MW',
+                  highlight: 'fusion',
+                },
+                {
+                  label: 'Aux heating (absorbed)',
+                  value: formatNumber(power.auxiliaryHeatingMW, 1),
+                  unit: 'MW',
+                },
                 { label: 'Thermal output', value: formatNumber(power.thermalOutputMW, 0), unit: 'MWth' },
                 { label: 'Gross electric', value: formatNumber(power.electricalOutputMW, 1), unit: 'MWe' },
                 { label: 'Plant auxiliary', value: formatNumber(power.plantAuxiliaryMW, 1), unit: 'MWe' },
-                { label: 'Net exchange', value: formatSigned(power.netElectricMW, 1), unit: 'MWe', highlight: netPositive ? 'ok' : 'crit' },
+                {
+                  label: 'Net exchange',
+                  value: formatSigned(power.netElectricMW, 1),
+                  unit: 'MWe',
+                  highlight: netPositive ? 'ok' : 'crit',
+                },
               ]}
             />
           </Panel>
 
-          <Panel title="Electrical Loads" subtitle="on-site consumption" className="min-h-[170px] flex-1" bodyClassName="!p-2">
+          <Panel
+            title="Electrical Loads"
+            subtitle="on-site consumption"
+            className="min-h-[170px] flex-1"
+            bodyClassName="!p-2"
+          >
             <ParameterTable
               dense
               rows={[
@@ -77,7 +101,12 @@ export function PowerGrid() {
                 { label: 'Coolant pumps', value: formatNumber(power.loads.coolantPumps, 1), unit: 'MW' },
                 { label: 'Vacuum pumps', value: formatNumber(power.loads.vacuumPumps, 1), unit: 'MW' },
                 { label: 'Instrumentation', value: formatNumber(power.loads.controls, 1), unit: 'MW' },
-                { label: 'Total', value: formatNumber(power.plantAuxiliaryMW, 1), unit: 'MW', highlight: 'warn' },
+                {
+                  label: 'Total',
+                  value: formatNumber(power.plantAuxiliaryMW, 1),
+                  unit: 'MW',
+                  highlight: 'warn',
+                },
               ]}
             />
           </Panel>
@@ -95,7 +124,9 @@ export function PowerGrid() {
             <div className="mt-2 grid grid-cols-3 gap-2 border-t border-edge/40 pt-2">
               <div>
                 <div className="label">Self-sufficiency</div>
-                <div className="num text-[13px] text-ink">{pctShare(power.electricalOutputMW, power.plantAuxiliaryMW)}</div>
+                <div className="num text-[13px] text-ink">
+                  {pctShare(power.electricalOutputMW, power.plantAuxiliaryMW)}
+                </div>
               </div>
               <div>
                 <div className="label">Recirculation</div>
@@ -105,7 +136,9 @@ export function PowerGrid() {
               </div>
               <div>
                 <div className="label">Q_engineering</div>
-                <div className={`num text-[13px] ${power.qEngineering && power.qEngineering > 0 ? 'text-emerald-300' : 'text-amber-300'}`}>
+                <div
+                  className={`num text-[13px] ${power.qEngineering && power.qEngineering > 0 ? 'text-emerald-300' : 'text-amber-300'}`}
+                >
                   {formatQ(power.qEngineering, 3)}
                 </div>
               </div>
@@ -160,32 +193,57 @@ export function PowerGrid() {
               <li>{POWER_MODEL_NOTES.net}</li>
             </ul>
             <p className="mt-1.5 text-[8px] leading-snug">
-              {POWER_MODEL_NOTES.caution} When the denominator is zero or invalid the UI shows N/A instead of an
-              infinite gain.
+              {POWER_MODEL_NOTES.caution} When the denominator is zero or invalid the UI shows N/A instead of
+              an infinite gain.
             </p>
           </Callout>
 
-          <Panel title="Conversion Chain" subtitle="step by step" className="min-h-[220px] flex-1" bodyClassName="!p-2">
+          <Panel
+            title="Conversion Chain"
+            subtitle="step by step"
+            className="min-h-[220px] flex-1"
+            bodyClassName="!p-2"
+          >
             <ParameterTable
               dense
               rows={[
                 { label: 'Fusion heat', value: formatNumber(power.fusionPowerMW, 1), unit: 'MW' },
                 { label: '+ absorbed aux', value: formatNumber(power.auxiliaryHeatingMW, 1), unit: 'MW' },
-                { label: '+ recovered waste', value: formatNumber(Math.max(0, power.thermalOutputMW - power.fusionPowerMW - power.auxiliaryHeatingMW), 1), unit: 'MW' },
+                {
+                  label: '+ recovered waste',
+                  value: formatNumber(
+                    Math.max(0, power.thermalOutputMW - power.fusionPowerMW - power.auxiliaryHeatingMW),
+                    1,
+                  ),
+                  unit: 'MW',
+                },
                 { label: '= thermal output', value: formatNumber(power.thermalOutputMW, 0), unit: 'MWth' },
-                { label: '× Rankine η', value: power.thermalOutputMW > 1 ? ((power.electricalOutputMW / power.thermalOutputMW) * 100).toFixed(1) : '0.0', unit: '%' },
+                {
+                  label: '× Rankine η',
+                  value:
+                    power.thermalOutputMW > 1
+                      ? ((power.electricalOutputMW / power.thermalOutputMW) * 100).toFixed(1)
+                      : '0.0',
+                  unit: '%',
+                },
                 { label: '= gross electric', value: formatNumber(power.electricalOutputMW, 1), unit: 'MWe' },
                 { label: '− plant loads', value: formatNumber(power.plantAuxiliaryMW, 1), unit: 'MWe' },
-                { label: '= net exchange', value: formatSigned(power.netElectricMW, 1), unit: 'MWe', highlight: netPositive ? 'ok' : 'crit' },
+                {
+                  label: '= net exchange',
+                  value: formatSigned(power.netElectricMW, 1),
+                  unit: 'MWe',
+                  highlight: netPositive ? 'ok' : 'crit',
+                },
               ]}
             />
           </Panel>
 
           <Callout tone="info" title="Why this plant is net-negative">
-            At this operating point Q_plasma is {formatQ(power.qPlasma, 1)} but the neutral beam wall-plug efficiency is
-            only 35%, so {formatNumber(power.loads.heating, 0)} MW of the {formatNumber(power.plantAuxiliaryMW, 0)} MW
-            on-site load is heating alone. That is why a plasma-level gain of several units can still leave the plant
-            importing electricity. This is a feature of the simplified model, not a prediction for any real plant.
+            At this operating point Q_plasma is {formatQ(power.qPlasma, 1)} but the neutral beam wall-plug
+            efficiency is only 35%, so {formatNumber(power.loads.heating, 0)} MW of the{' '}
+            {formatNumber(power.plantAuxiliaryMW, 0)} MW on-site load is heating alone. That is why a
+            plasma-level gain of several units can still leave the plant importing electricity. This is a
+            feature of the simplified model, not a prediction for any real plant.
           </Callout>
         </div>
       </div>

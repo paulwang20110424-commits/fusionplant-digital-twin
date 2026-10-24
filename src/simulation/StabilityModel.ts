@@ -31,7 +31,8 @@ export function computeStability(input: StabilityInput): StabilityBreakdown {
   const fieldPenalty = (1 - clamp(input.fieldQuality, 0, 1)) * 0.5;
   const vacuumPenalty = clamp(Math.log10(Math.max(input.vacuumPressurePa, 1e-8) / 1e-4) / 3, 0, 1) * 0.3;
   const thermalPenalty = clamp((input.thermalOverloadPct - 90) / 50, 0, 1) * 0.25;
-  const ignitionPenalty = input.temperatureKeV < 2 && input.temperatureKeV > 0 ? (1 - input.temperatureKeV / 2) * 0.25 : 0;
+  const ignitionPenalty =
+    input.temperatureKeV < 2 && input.temperatureKeV > 0 ? (1 - input.temperatureKeV / 2) * 0.25 : 0;
   const disturbancePenalty = clamp(Math.abs(input.disturbance), 0, 1) * 0.15;
 
   const terms = [

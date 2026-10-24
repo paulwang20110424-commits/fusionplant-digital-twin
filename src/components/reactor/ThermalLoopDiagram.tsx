@@ -11,7 +11,16 @@ interface Stage {
 function StageBox({ stage, x }: { stage: Stage; x: number }) {
   return (
     <g>
-      <rect x={x} y={14} width={88} height={50} rx="2" fill="#071522" stroke={stage.tone} strokeOpacity="0.55" />
+      <rect
+        x={x}
+        y={14}
+        width={88}
+        height={50}
+        rx="2"
+        fill="#071522"
+        stroke={stage.tone}
+        strokeOpacity="0.55"
+      />
       <rect x={x} y={14} width={88} height={12} rx="2" fill={stage.tone} fillOpacity="0.14" />
       <text x={x + 6} y={23} fontSize="6.5" fontFamily="monospace" fill={stage.tone} letterSpacing="0.8">
         {stage.title}
@@ -33,17 +42,42 @@ export function ThermalLoopDiagram() {
   const power = frame.power;
 
   const stages: Stage[] = [
-    { title: 'FUSION + AUX', value: `${formatNumber(power.thermalOutputMW, 0)} MW`, sub: 'heat into loop', tone: '#d946ef' },
-    { title: 'FIRST WALL', value: `ΔT ${formatNumber(thermal.coolantDeltaTK, 1)} K`, sub: 'convective transfer', tone: '#22d3ee' },
-    { title: 'HEAT EXCH.', value: `${formatNumber(thermal.heatExchangerLoadPct, 0)} %`, sub: 'of effective duty', tone: thermal.heatExchangerLoadPct > 92 ? '#f59e0b' : '#34d399' },
+    {
+      title: 'FUSION + AUX',
+      value: `${formatNumber(power.thermalOutputMW, 0)} MW`,
+      sub: 'heat into loop',
+      tone: '#d946ef',
+    },
+    {
+      title: 'FIRST WALL',
+      value: `ΔT ${formatNumber(thermal.coolantDeltaTK, 1)} K`,
+      sub: 'convective transfer',
+      tone: '#22d3ee',
+    },
+    {
+      title: 'HEAT EXCH.',
+      value: `${formatNumber(thermal.heatExchangerLoadPct, 0)} %`,
+      sub: 'of effective duty',
+      tone: thermal.heatExchangerLoadPct > 92 ? '#f59e0b' : '#34d399',
+    },
     { title: 'STEAM TURBINE', value: thermal.turbineStatus, sub: 'Rankine cycle', tone: '#38bdf8' },
-    { title: 'GENERATOR', value: `${formatNumber(power.electricalOutputMW, 0)} MWe`, sub: 'gross output', tone: '#a3e635' },
+    {
+      title: 'GENERATOR',
+      value: `${formatNumber(power.electricalOutputMW, 0)} MWe`,
+      sub: 'gross output',
+      tone: '#a3e635',
+    },
   ];
 
   const netPositive = power.netElectricMW >= 0;
 
   return (
-    <svg viewBox="0 0 490 170" className="h-full w-full" role="img" aria-label="Thermal and electrical process flow">
+    <svg
+      viewBox="0 0 490 170"
+      className="h-full w-full"
+      role="img"
+      aria-label="Thermal and electrical process flow"
+    >
       <defs>
         <marker id="arrowHead" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
           <path d="M0,0 L6,3 L0,6 Z" fill="#1d3d5c" />

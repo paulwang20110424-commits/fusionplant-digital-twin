@@ -26,7 +26,9 @@ export function ParameterTable({ rows, dense = false }: { rows: ParameterRow[]; 
         >
           <span className="text-[10px] leading-snug text-muted">{row.label}</span>
           <span className="flex shrink-0 items-baseline gap-1">
-            <span className={`num text-[11.5px] ${HIGHLIGHT[row.highlight ?? ''] ?? 'text-ink'}`}>{row.value}</span>
+            <span className={`num text-[11.5px] ${HIGHLIGHT[row.highlight ?? ''] ?? 'text-ink'}`}>
+              {row.value}
+            </span>
             <span className="metric-unit w-[52px] text-right">{row.unit}</span>
           </span>
         </div>
@@ -54,7 +56,9 @@ export function PageHeader({
           <span className="chip chip-fusion">SIMULATED</span>
         </div>
         <h1 className="mt-0.5 text-[17px] font-semibold tracking-[0.08em] text-ink">{title}</h1>
-        {description && <p className="mt-0.5 max-w-3xl text-[10.5px] leading-snug text-muted">{description}</p>}
+        {description && (
+          <p className="mt-0.5 max-w-3xl text-[10.5px] leading-snug text-muted">{description}</p>
+        )}
       </div>
       {right && <div className="flex flex-wrap items-center gap-1.5">{right}</div>}
     </div>
@@ -89,7 +93,9 @@ export function Callout({
 
   return (
     <div className={`rounded-sm border px-2.5 py-2 text-[10px] leading-relaxed ${styles[tone]}`}>
-      {title && <div className="mb-1 text-[9px] font-semibold uppercase tracking-[0.16em] opacity-80">{title}</div>}
+      {title && (
+        <div className="mb-1 text-[9px] font-semibold uppercase tracking-[0.16em] opacity-80">{title}</div>
+      )}
       {children}
     </div>
   );

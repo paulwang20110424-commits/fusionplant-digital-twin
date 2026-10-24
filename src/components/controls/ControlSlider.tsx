@@ -15,7 +15,12 @@ interface ControlSliderProps {
  * Local state updates immediately (crisp drag); the store is updated at ~16 Hz so
  * dragging never floods the simulation engine with publishes.
  */
-export function ControlSlider({ controlKey, baselineValue, disabled = false, compact = false }: ControlSliderProps) {
+export function ControlSlider({
+  controlKey,
+  baselineValue,
+  disabled = false,
+  compact = false,
+}: ControlSliderProps) {
   const spec = CONTROL_SPEC_MAP[controlKey];
   const storeValue = useSimulationStore((state) => state.frame.controls[controlKey]);
   const setControl = useSimulationStore((state) => state.setControl);
@@ -70,7 +75,11 @@ export function ControlSlider({ controlKey, baselineValue, disabled = false, com
   return (
     <div className={`group ${disabled ? 'opacity-50' : ''}`}>
       <div className="flex items-baseline justify-between gap-2">
-        <label className="flex items-center gap-1 truncate text-[10px] text-muted" htmlFor={`ctrl-${controlKey}`} title={spec.description}>
+        <label
+          className="flex items-center gap-1 truncate text-[10px] text-muted"
+          htmlFor={`ctrl-${controlKey}`}
+          title={spec.description}
+        >
           <span className="truncate">{spec.label}</span>
           <span className="text-[8px] text-faint">ⓘ</span>
         </label>
@@ -91,8 +100,17 @@ export function ControlSlider({ controlKey, baselineValue, disabled = false, com
         onChange={(event) => commit(Number(event.target.value))}
         onPointerUp={(event) => commit(Number((event.target as HTMLInputElement).value), true)}
         onKeyUp={(event) => commit(Number((event.target as HTMLInputElement).value), true)}
+        data-demo={`control-${controlKey}`}
+        aria-label={spec.label}
+        aria-valuemin={spec.min}
+        aria-valuemax={spec.max}
+        aria-valuenow={localValue}
         aria-valuetext={`${localValue.toFixed(spec.precision)} ${spec.unit}`}
+        aria-describedby={`ctrl-desc-${controlKey}`}
       />
+      <span id={`ctrl-desc-${controlKey}`} className="sr-only">
+        {spec.description} Range {spec.min} to {spec.max} {spec.unit}.
+      </span>
 
       <div className="flex items-center justify-between gap-2">
         <div className="relative h-3 flex-1">

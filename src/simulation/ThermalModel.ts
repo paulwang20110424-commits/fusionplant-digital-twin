@@ -33,7 +33,12 @@ export function heatExchangerLoadPct(thermalPowerMW: number, flowKgS: number, av
  * Cold-leg temperature. When the exchanger is overloaded the surplus heat is
  * rejected into the loop itself, so the inlet temperature drifts up.
  */
-export function targetInletC(requestedC: number, thermalPowerMW: number, flowKgS: number, availability = 1): number {
+export function targetInletC(
+  requestedC: number,
+  thermalPowerMW: number,
+  flowKgS: number,
+  availability = 1,
+): number {
   const capacity = heatExchangerCapacityMW(flowKgS, availability);
   const overload = Math.max(0, thermalPowerMW - capacity);
   const overloadPenalty = safeDiv(overload, Math.max(capacity, 1), 0) ?? 0;
@@ -120,8 +125,7 @@ export function stepVacuumPressure(params: {
 
 export const THERMAL_MODEL_NOTES = {
   loop: 'dT_loop = Q_thermal / (m_dot * cp), cp = 4180 J/(kg K)',
-  inlet:
-    'T_in -> T_in,requested + 55 K * max(0, (Q_thermal - Q_capacity)/Q_capacity), lagged with tau = 6 s',
+  inlet: 'T_in -> T_in,requested + 55 K * max(0, (Q_thermal - Q_capacity)/Q_capacity), lagged with tau = 6 s',
   outlet: 'T_out = T_in + dT_loop, lagged with the first-wall time constant tau = 2.5 s',
   exchanger: 'Q_capacity = 1600 MW * (m_dot/12000)^0.8',
   vacuum: 'p -> (p_base + leak) / pumpingAvailability, tau = 2.5 s',

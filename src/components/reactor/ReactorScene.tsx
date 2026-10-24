@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, type ThreeEvent } from '@react-three/fiber';
 import { Line, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
@@ -24,15 +24,28 @@ interface PartProps {
   visible?: boolean;
 }
 
-const useHoverCursor = () => {
-  const [hovered, setHovered] = useState(false);
+const HoverContext = createContext<(id: ReactorComponentId | null) => void>(() => undefined);
+
+/**
+ * Pointer cursor + hover reporting to the parent panel (which renders the
+ * tooltip in DOM space rather than inside the canvas).
+ */
+const useHoverCursor = (id?: ReactorComponentId) => {
+  const report = useContext(HoverContext);
+  const [hovered, setHoveredState] = useState(false);
   useEffect(() => {
     document.body.style.cursor = hovered ? 'pointer' : '';
     return () => {
       document.body.style.cursor = '';
     };
   }, [hovered]);
-  return setHovered;
+  return useCallback(
+    (value: boolean) => {
+      setHoveredState(value);
+      if (id) report(value ? id : null);
+    },
+    [id, report],
+  );
 };
 
 /* ------------------------------------------------------------------ */
@@ -45,7 +58,7 @@ function PlasmaCore({ selected, onSelect, visible = true }: PartProps) {
   const coreMaterial = useRef<THREE.MeshStandardMaterial>(null);
   const glowMaterial = useRef<THREE.MeshBasicMaterial>(null);
   const temp = useMemo(() => new THREE.Color('#d946ef'), []);
-  const setHovered = useHoverCursor();
+  const setHovered = useHoverCursor('plasma');
 
   useFrame((state) => {
     const frame = useSimulationStore.getState().frame;
@@ -145,7 +158,7 @@ function PlasmaCore({ selected, onSelect, visible = true }: PartProps) {
 /* ------------------------------------------------------------------ */
 
 function VacuumVessel({ selected, onSelect, cutaway }: PartProps & { cutaway: boolean }) {
-  const setHovered = useHoverCursor();
+  const setHovered = useHoverCursor('vacuum-vessel');
   const arc = cutaway ? Math.PI * 1.28 : Math.PI * 2;
 
   return (
@@ -189,7 +202,7 @@ function VacuumVessel({ selected, onSelect, cutaway }: PartProps & { cutaway: bo
 }
 
 function Cryostat({ selected, onSelect, visible }: PartProps) {
-  const setHovered = useHoverCursor();
+  const setHovered = useHoverCursor('cryostat');
   if (!visible) return null;
   return (
     <group
@@ -231,7 +244,7 @@ function ToroidalFieldCoils({ selected, onSelect, visible }: PartProps) {
     const tube = new THREE.TubeGeometry(curve, 120, 0.26, 8, true);
     return tube;
   }, []);
-  const setHovered = useHoverCursor();
+  const setHovered = useHoverCursor('tf-coil');
 
   useEffect(() => () => geometry.dispose(), [geometry]);
 
@@ -271,7 +284,7 @@ function ToroidalFieldCoils({ selected, onSelect, visible }: PartProps) {
 const PF_COILS = PF_COIL_POSITIONS;
 
 function PoloidalFieldCoils({ selected, onSelect, visible }: PartProps) {
-  const setHovered = useHoverCursor();
+  const setHovered = useHoverCursor('pf-coil');
   if (!visible) return null;
   return (
     <group
@@ -302,7 +315,7 @@ function PoloidalFieldCoils({ selected, onSelect, visible }: PartProps) {
 }
 
 function CentralSolenoid({ selected, onSelect, visible }: PartProps) {
-  const setHovered = useHoverCursor();
+  const setHovered = useHoverCursor('central-solenoid');
   if (!visible) return null;
   return (
     <group
@@ -341,7 +354,7 @@ function CentralSolenoid({ selected, onSelect, visible }: PartProps) {
 /* ------------------------------------------------------------------ */
 
 function Divertor({ selected, onSelect, visible }: PartProps) {
-  const setHovered = useHoverCursor();
+  const setHovered = useHoverCursor('divertor');
   if (!visible) return null;
   return (
     <group
@@ -411,7 +424,9 @@ function FieldLines({ visible }: { visible: boolean }) {
         const phi = (index / 220) * Math.PI * 3.4;
         const theta = phi / q + (lineIndex * Math.PI) / 2;
         const rho = R0 + radius * Math.cos(theta) * 1.0;
-        points.push(new THREE.Vector3(rho * Math.cos(phi), radius * Math.sin(theta) * 1.35, rho * Math.sin(phi)));
+        points.push(
+          new THREE.Vector3(rho * Math.cos(phi), radius * Math.sin(theta) * 1.35, rho * Math.sin(phi)),
+        );
       }
       result.push(points);
     });
@@ -466,11 +481,13 @@ function LabelSprite({
   text,
   position,
   active,
+  faulted = false,
   onClick,
 }: {
   text: string;
   position: [number, number, number];
   active: boolean;
+  faulted?: boolean;
   onClick: () => void;
 }) {
   const texture = useMemo(() => {
@@ -496,23 +513,31 @@ function LabelSprite({
 
     context.clearRect(0, 0, 512, 96);
     drawRounded(6, 6, 500, 84, 10);
-    context.fillStyle = active ? 'rgba(8, 47, 60, 0.88)' : 'rgba(4, 14, 24, 0.72)';
+    context.fillStyle = faulted
+      ? 'rgba(60, 26, 4, 0.92)'
+      : active
+        ? 'rgba(8, 47, 60, 0.88)'
+        : 'rgba(4, 14, 24, 0.72)';
     context.fill();
     context.lineWidth = 3;
-    context.strokeStyle = active ? 'rgba(34, 211, 238, 0.95)' : 'rgba(34, 211, 238, 0.35)';
+    context.strokeStyle = faulted
+      ? 'rgba(245, 158, 11, 0.98)'
+      : active
+        ? 'rgba(34, 211, 238, 0.95)'
+        : 'rgba(34, 211, 238, 0.35)';
     context.stroke();
 
     context.font = 'bold 34px "SFMono-Regular", Menlo, Consolas, monospace';
     context.textAlign = 'center';
     context.textBaseline = 'middle';
-    context.fillStyle = active ? '#d7f7ff' : '#7dd3fc';
+    context.fillStyle = faulted ? '#fde68a' : active ? '#d7f7ff' : '#7dd3fc';
     context.fillText(text, 256, 52);
 
     const canvasTexture = new THREE.CanvasTexture(canvas);
     canvasTexture.anisotropy = 4;
     canvasTexture.needsUpdate = true;
     return canvasTexture;
-  }, [text, active]);
+  }, [text, active, faulted]);
 
   useEffect(() => () => texture?.dispose(), [texture]);
 
@@ -545,11 +570,13 @@ function ComponentLabels({
   selected,
   onSelect,
   hidden,
+  faulted = [],
 }: {
   show: boolean;
   selected: ReactorComponentId;
   onSelect: (id: ReactorComponentId) => void;
   hidden: ReactorComponentId[];
+  faulted?: ReactorComponentId[];
 }) {
   if (!show) return null;
   return (
@@ -557,13 +584,47 @@ function ComponentLabels({
       {LABELS.filter((label) => !hidden.includes(label.id)).map((label) => (
         <LabelSprite
           key={label.id}
-          text={label.text}
+          text={faulted.includes(label.id) ? `⚠ ${label.text}` : label.text}
           position={label.position}
           active={selected === label.id}
+          faulted={faulted.includes(label.id)}
           onClick={() => onSelect(label.id)}
         />
       ))}
     </>
+  );
+}
+
+/**
+ * Pulsing amber marker around every component affected by an active fault.
+ * Purely illustrative — it visualises which sub-systems the model considers
+ * affected, not a real fault-tree propagation.
+ */
+function FaultAuras({ faulted }: { faulted: ReactorComponentId[] }) {
+  const groupRef = useRef<THREE.Group>(null);
+
+  useFrame((state) => {
+    if (!groupRef.current) return;
+    const pulse = 1 + Math.sin(state.clock.elapsedTime * 3) * 0.06;
+    groupRef.current.scale.setScalar(pulse);
+  });
+
+  const positions = useMemo(() => LABELS.filter((label) => faulted.includes(label.id)), [faulted]);
+
+  if (!positions.length) return null;
+
+  return (
+    <group ref={groupRef}>
+      {positions.map((label) => (
+        <group key={`fault-${label.id}`} position={label.position}>
+          <mesh>
+            <torusGeometry args={[0.55, 0.045, 8, 32]} />
+            <meshBasicMaterial color="#f59e0b" toneMapped={false} transparent opacity={0.95} />
+          </mesh>
+          <pointLight color="#f59e0b" intensity={3} distance={4} decay={2} />
+        </group>
+      ))}
+    </group>
   );
 }
 
@@ -576,6 +637,8 @@ export interface ReactorSceneProps {
   showFieldLines: boolean;
   showLabels: boolean;
   hiddenStructures: ReactorComponentId[];
+  faultedComponents?: ReactorComponentId[];
+  onHoverComponent?: (id: ReactorComponentId | null) => void;
   selected: ReactorComponentId;
   onSelect: (id: ReactorComponentId) => void;
   autoRotate: boolean;
@@ -587,6 +650,8 @@ function SceneContents({
   showFieldLines,
   showLabels,
   hiddenStructures,
+  faultedComponents = [],
+  onHoverComponent,
   selected,
   onSelect,
   autoRotate,
@@ -602,7 +667,7 @@ function SceneContents({
   }, [resetSignal]);
 
   return (
-    <>
+    <HoverContext.Provider value={onHoverComponent ?? (() => undefined)}>
       <ambientLight intensity={0.55} />
       <directionalLight position={[18, 22, 14]} intensity={1.5} color="#cfe9ff" />
       <directionalLight position={[-20, -10, -16]} intensity={0.5} color="#5b7fa8" />
@@ -630,7 +695,11 @@ function SceneContents({
               onSelect={onSelect}
               visible={!cutaway && isVisible('central-solenoid')}
             />
-            <Divertor selected={selected === 'divertor'} onSelect={onSelect} visible={isVisible('divertor')} />
+            <Divertor
+              selected={selected === 'divertor'}
+              onSelect={onSelect}
+              visible={isVisible('divertor')}
+            />
             <Cryostat
               selected={selected === 'cryostat'}
               onSelect={onSelect}
@@ -645,9 +714,11 @@ function SceneContents({
           selected={selected}
           onSelect={onSelect}
           hidden={hiddenStructures}
+          faulted={faultedComponents}
         />
       </group>
 
+      <FaultAuras faulted={faultedComponents} />
       <OrbitControls
         ref={controlsRef as never}
         makeDefault
@@ -663,7 +734,7 @@ function SceneContents({
         autoRotateSpeed={0.55}
         target={[0, 0.6, 0]}
       />
-    </>
+    </HoverContext.Provider>
   );
 }
 

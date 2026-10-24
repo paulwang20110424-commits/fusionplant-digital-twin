@@ -73,9 +73,7 @@ export function Diagnostics() {
         {CHART_ORDER.map((key) => {
           const config = CHART_CONFIGS[key];
           if (!config) return null;
-          return (
-            <ChartPanel key={key} config={config} className="h-[204px]" showZoom={false} />
-          );
+          return <ChartPanel key={key} config={config} className="h-[204px]" showZoom={false} />;
         })}
         <CorrelationScatter className="h-[204px]" />
       </div>
@@ -96,7 +94,10 @@ export function Diagnostics() {
               <StatRow label="Simulated time" value={`${frame.simTimeS.toFixed(1)} s`} />
               <StatRow label="Integrator steps" value={frame.stepCount.toLocaleString('en-US')} />
               <StatRow label="History samples" value={`${sampleCount}`} />
-              <StatRow label="Buffer window" value={`${bufferRange.start.toFixed(0)}–${bufferRange.end.toFixed(0)} s`} />
+              <StatRow
+                label="Buffer window"
+                value={`${bufferRange.start.toFixed(0)}–${bufferRange.end.toFixed(0)} s`}
+              />
               <StatRow label="Alarms raised" value={`${alarms.length}`} />
               <StatRow label="Active faults" value={`${frame.activeFaults.length}`} />
               <StatRow label="Devices online" value={`${frame.devicesOnline}/${frame.devicesTotal}`} />
@@ -104,8 +105,8 @@ export function Diagnostics() {
           </Panel>
 
           <Callout tone="info" title="Data provenance">
-            Every value in this page is produced by the local FusionSimulationEngine at a fixed 50 ms simulated step.
-            No network requests, no fabricated backend, no recorded measurements.
+            Every value in this page is produced by the local FusionSimulationEngine at a fixed 50 ms
+            simulated step. No network requests, no fabricated backend, no recorded measurements.
           </Callout>
         </div>
       </div>

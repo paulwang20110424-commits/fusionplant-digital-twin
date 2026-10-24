@@ -36,12 +36,19 @@ export function NumberField({
         min={min}
         max={max}
         step={step}
+        aria-label={label}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? `${label.replace(/\s+/g, '-')}-error` : undefined}
         onChange={(event) => {
           const parsed = event.target.valueAsNumber;
           onChange(Number.isFinite(parsed) ? parsed : Number.NaN);
         }}
       />
-      {error && <p className="mt-0.5 text-[9px] text-red-300">{error}</p>}
+      {error && (
+        <p id={`${label.replace(/\s+/g, '-')}-error`} className="mt-0.5 text-[9px] text-red-300" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -66,7 +73,12 @@ export function SelectField<T extends string>({
           {label}
         </span>
       </div>
-      <select className="field" value={value} onChange={(event) => onChange(event.target.value as T)}>
+      <select
+        className="field"
+        value={value}
+        onChange={(event) => onChange(event.target.value as T)}
+        aria-label={label}
+      >
         {options.map((option) => (
           <option key={option.value} value={option.value} className="bg-[#081220]">
             {option.label}
@@ -111,6 +123,11 @@ export function SlopeField({
         step={step}
         value={value}
         onChange={(event) => onChange(Number(event.target.value))}
+        aria-label={label}
+        aria-valuemin={min}
+        aria-valuemax={max}
+        aria-valuenow={value}
+        aria-valuetext={format ? format(value) : value.toFixed(2)}
       />
     </div>
   );
@@ -132,6 +149,9 @@ export function Toggle({
   return (
     <button
       type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
       onClick={() => !disabled && onChange(!checked)}
       disabled={disabled}
       title={hint}

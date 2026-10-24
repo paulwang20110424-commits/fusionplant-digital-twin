@@ -2,9 +2,9 @@ import { useMemo } from 'react';
 import { historyBuffer, useSimulationStore } from '@/store/simulationStore';
 import type { HistoryChannel } from '@/types/simulation';
 import { Sparkline } from '@/components/charts/TrendChart';
-import { formatSigned } from '@/utils/units';
+import { computeTrendDelta, formatTrendDelta, trendDirection } from '@/utils/trend';
 
-interface MetricTileProps {
+export interface MetricTileProps {
   label: string;
   value: string;
   unit: string;
@@ -12,8 +12,22 @@ interface MetricTileProps {
   color?: string;
   status?: 'ok' | 'warn' | 'crit' | 'idle';
   hint?: string;
-  trendDigits?: number;
   showTrend?: boolean;
+  /**
+   * Multiplier applied to the raw channel value before the trend delta is
+   * computed. Use it whenever `value` is displayed in a scaled unit.
+   *
+   *   density   raw m⁻³      → valueScale 1e-19, unit ×10¹⁹ m⁻³
+   *   stability raw 0..1     → valueScale 100,   unit %
+   *   power     raw MW       → valueScale 1,     unit MW
+   */
+  valueScale?: number;
+  /** Decimal places for the trend delta, in display units (default 2). */
+  trendDigits?: number;
+  /** Unit suffix for the trend delta, e.g. "%" or "×10¹⁹". */
+  trendUnit?: string;
+  /** Fully custom trend formatter (takes precedence over trendDigits/trendUnit). */
+  trendFormatter?: (delta: number) => string;
 }
 
 const STATUS_TEXT = {
@@ -30,6 +44,21 @@ const STATUS_BORDER = {
   idle: 'border-edge/70',
 } as const;
 
+const TREND_COLOR = {
+  up: 'text-emerald-400/80',
+  down: 'text-rose-400/80',
+  flat: 'text-faint',
+  invalid: 'text-faint',
+} as const;
+
+/** Accessibility label for the trend, e.g. "+0.14 ×10¹⁹ in the last 10 s". */
+function trendAriaLabel(delta: number | null, text: string, unit?: string): string {
+  if (delta === null) return 'trend unavailable';
+  const direction = trendDirection(delta);
+  const phrase = direction === 'flat' ? 'unchanged' : direction === 'up' ? 'rising' : 'falling';
+  return `trend ${phrase} ${text}${unit ? '' : ''} over the last 10 seconds`;
+}
+
 export function MetricTile({
   label,
   value,
@@ -38,21 +67,31 @@ export function MetricTile({
   color = '#22d3ee',
   status = 'idle',
   hint,
-  trendDigits = 1,
   showTrend = true,
+  valueScale = 1,
+  trendDigits = 2,
+  trendUnit,
+  trendFormatter,
 }: MetricTileProps) {
   const epoch = useSimulationStore((state) => state.chartEpoch);
 
   const delta = useMemo(() => {
     if (!channel || !showTrend) return null;
+    // `epoch` invalidates the memo on every chart tick.
+    void epoch;
     const samples = historyBuffer.window(30);
     if (samples.length < 4) return null;
     const latest = samples[samples.length - 1][channel];
     const reference = samples[Math.max(0, samples.length - 20)][channel];
-    if (typeof latest !== 'number' || typeof reference !== 'number') return null;
-    if (!Number.isFinite(latest) || !Number.isFinite(reference)) return null;
-    return latest - reference;
-  }, [epoch, channel, showTrend]);
+    return computeTrendDelta(latest, reference, valueScale);
+  }, [epoch, channel, showTrend, valueScale]);
+
+  const trendText = formatTrendDelta(delta, {
+    digits: trendDigits,
+    unit: trendUnit,
+    formatter: trendFormatter,
+  });
+  const direction = trendDirection(delta);
 
   return (
     <div
@@ -60,14 +99,16 @@ export function MetricTile({
       title={hint}
     >
       <div className="flex items-center justify-between gap-1">
-        <span className="label truncate">{label}</span>
+        <span className="label truncate" title={label}>
+          {label}
+        </span>
         {delta !== null && (
           <span
-            className={`num text-[8.5px] ${
-              Math.abs(delta) < 1e-9 ? 'text-faint' : delta > 0 ? 'text-emerald-400/80' : 'text-rose-400/80'
-            }`}
+            className={`num shrink-0 text-[8.5px] ${TREND_COLOR[direction]}`}
+            aria-label={trendAriaLabel(delta, trendText, trendUnit)}
+            title={`Change over ~10 s: ${trendText}`}
           >
-            {formatSigned(delta, trendDigits)}
+            {trendText}
           </span>
         )}
       </div>

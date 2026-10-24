@@ -13,6 +13,10 @@ import { formatBytes, formatClock, formatDateTime, formatNumber } from '@/utils/
 import { downloadTextFile, samplesToCSV, sessionToJSON, timestampSlug } from '@/utils/export';
 import { historyBuffer } from '@/store/historyBuffer';
 import { validateSeed } from '@/utils/validation';
+import { randomSeed as makeRandomSeed } from '@/simulation/random';
+import { buildShareUrl } from '@/utils/urlState';
+import { VERSION_LABEL, MODEL_VERSION, RELEASE_NAME } from '@/config/version';
+import { useGuidedDemoStore } from '@/store/guidedDemoStore';
 
 const VARIANT_OPTIONS: Array<{ id: ScenarioId; label: string; hint: string }> = [
   { id: 'HIGH_HEATING', label: 'HIGH HEATING', hint: 'Auxiliary heating to 100 MW' },
@@ -82,6 +86,8 @@ export function SimulationLab() {
   const whatIfRunning = useSimulationStore((state) => state.whatIfRunning);
   const runWhatIf = useSimulationStore((state) => state.runWhatIf);
   const clearWhatIf = useSimulationStore((state) => state.clearWhatIf);
+  const reproduceRun = useSimulationStore((state) => state.reproduceRun);
+  const runConfiguration = useSimulationStore((state) => state.runConfiguration);
   const lastValidation = useSimulationStore((state) => state.lastValidation);
   const events = useSimulationStore((state) => state.events);
   const sessions = useSimulationStore((state) => state.sessions);
@@ -193,7 +199,39 @@ export function SimulationLab() {
         description="Single control surface for every simulated setpoint, model parameter, fault injection and headless scenario comparison. Changes are applied to the running engine immediately and every modification is timestamped in the event log."
         right={
           <>
-            <button type="button" className="btn btn-primary" onClick={start} disabled={frame.status === 'RUNNING'}>
+            <span
+              className="chip chip-info"
+              title={`${VERSION_LABEL} · model ${MODEL_VERSION} · ${RELEASE_NAME}`}
+            >
+              {VERSION_LABEL}
+            </span>
+            <button
+              type="button"
+              className="btn btn-xs"
+              aria-label="Copy a shareable link to this console state"
+              title="Copy a link that opens this page with the current scenario, seed and 3D selection"
+              onClick={() => {
+                const link = buildShareUrl({
+                  page: useSimulationStore.getState().activePage,
+                  scenario: useSimulationStore.getState().scenarioId,
+                  seed: frame.config.seed,
+                  view: useSimulationStore.getState().reactorView,
+                  selectedComponent: useSimulationStore.getState().selectedComponent,
+                });
+                void navigator.clipboard?.writeText(link).then(
+                  () => pushToast('Shareable link copied.', 'success'),
+                  () => pushToast(`Share link: ${link}`, 'info'),
+                );
+              }}
+            >
+              COPY LINK
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={start}
+              disabled={frame.status === 'RUNNING'}
+            >
               ▶ RUN EXPERIMENT
             </button>
             <button type="button" className="btn" onClick={pause} disabled={frame.status !== 'RUNNING'}>
@@ -313,15 +351,86 @@ export function SimulationLab() {
               <div className="flex items-end gap-1">
                 <div className="flex-1">
                   <NumberField
-                    label="PRNG seed"
+                    label="PRNG seed (randomSeed)"
                     value={Number(seedText)}
                     onChange={(value) => setSeedText(String(Number.isFinite(value) ? value : ''))}
                     hint="Deterministic seed for reproducible disturbance / noise sequences"
                   />
                 </div>
-                <button type="button" className="btn btn-xs h-[26px]" onClick={applySeed}>
+                <button
+                  type="button"
+                  className="btn btn-xs h-[26px]"
+                  onClick={applySeed}
+                  aria-label="Apply random seed"
+                >
                   SET
                 </button>
+                <button
+                  type="button"
+                  className="btn btn-xs h-[26px]"
+                  aria-label="Randomize the random seed"
+                  onClick={() => {
+                    const next = makeRandomSeed();
+                    setSeedText(String(next));
+                    setConfig({ seed: next });
+                    pushToast(`Seed set to ${next}.`, 'info');
+                  }}
+                >
+                  ⤨
+                </button>
+              </div>
+
+              <div className="rounded-sm border border-edge/50 bg-white/[0.012] p-2">
+                <div className="label mb-1">Run identity</div>
+                <div className="flex flex-col gap-0.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[9px] text-muted">run id</span>
+                    <span className="num truncate text-[9.5px] text-sys/90" title={frame.runId}>
+                      {frame.runId}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[9px] text-muted">seed</span>
+                    <span className="num text-[9.5px] text-ink">{frame.config.seed}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[9px] text-muted">model</span>
+                    <span className="num text-[9.5px] text-ink">v{MODEL_VERSION}</span>
+                  </div>
+                </div>
+                <div className="mt-1.5 grid grid-cols-2 gap-1">
+                  <button
+                    type="button"
+                    className="btn btn-xs"
+                    aria-label="Copy the full run configuration as JSON"
+                    onClick={() => {
+                      const json = JSON.stringify(runConfiguration(), null, 2);
+                      void navigator.clipboard?.writeText(json).then(
+                        () => pushToast('Run configuration copied to clipboard.', 'success'),
+                        () => pushToast('Clipboard unavailable — configuration logged instead.', 'warning'),
+                      );
+                      appendEvent({
+                        id: `evt-runconfig-${Date.now()}`,
+                        tS: frame.simTimeS,
+                        wallMs: Date.now(),
+                        category: 'SIM',
+                        level: 'INFO',
+                        message: 'Run configuration copied',
+                        detail: `runId ${frame.runId}`,
+                      });
+                    }}
+                  >
+                    COPY CONFIG
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-xs btn-primary"
+                    aria-label="Reproduce the run with the current seed and configuration"
+                    onClick={reproduceRun}
+                  >
+                    REPRODUCE RUN
+                  </button>
+                </div>
               </div>
             </div>
           </Panel>
@@ -405,6 +514,7 @@ export function SimulationLab() {
               ))}
               <button
                 type="button"
+                data-demo="whatif-run"
                 className="btn btn-primary ml-auto"
                 onClick={() => void runWhatIf(variant)}
                 disabled={whatIfRunning}
@@ -414,8 +524,9 @@ export function SimulationLab() {
             </div>
 
             <p className="mt-1.5 text-[8.5px] leading-snug text-faint">
-              Runs the baseline and the selected variant headlessly for {Math.min(600, Math.max(60, frame.config.runDurationS))} simulated
-              seconds using separate engine instances. Results never modify the live run or its history.
+              Runs the baseline and the selected variant headlessly for{' '}
+              {Math.min(600, Math.max(60, frame.config.runDurationS))} simulated seconds using separate engine
+              instances. Results never modify the live run or its history.
             </p>
 
             {whatIfBaseline && whatIfVariant ? (
@@ -485,9 +596,9 @@ export function SimulationLab() {
               <div className="flex h-[150px] flex-col items-center justify-center gap-1 text-center">
                 <span className="text-[10px] tracking-[0.16em] text-faint">NO COMPARISON RUN YET</span>
                 <span className="max-w-md text-[9px] leading-snug text-faint">
-                  Pick a variant and run the analysis. Two isolated engine instances are stepped for the configured
-                  duration and the summaries are compared across temperature, power, stability, Q factors and the
-                  integrated energy balance.
+                  Pick a variant and run the analysis. Two isolated engine instances are stepped for the
+                  configured duration and the summaries are compared across temperature, power, stability, Q
+                  factors and the integrated energy balance.
                 </span>
               </div>
             )}
@@ -499,7 +610,10 @@ export function SimulationLab() {
                 {[whatIfBaseline, whatIfVariant].map((result, index) => (
                   <div key={result.label} className="rounded-sm border border-edge/50 bg-white/[0.014] p-2">
                     <div className="mb-1 flex items-center justify-between">
-                      <span className="text-[10px] font-semibold" style={{ color: index === 0 ? '#22d3ee' : '#d946ef' }}>
+                      <span
+                        className="text-[10px] font-semibold"
+                        style={{ color: index === 0 ? '#22d3ee' : '#d946ef' }}
+                      >
                         {result.label}
                       </span>
                       <span className="num text-[8.5px] text-faint">{result.durationS} s</span>
@@ -507,15 +621,47 @@ export function SimulationLab() {
                     <ParameterTable
                       dense
                       rows={[
-                        { label: 'Final temperature', value: formatNumber(result.summary.finalTemperatureKeV, 2), unit: 'keV' },
-                        { label: 'Peak temperature', value: formatNumber(result.summary.peakTemperatureKeV, 2), unit: 'keV' },
-                        { label: 'Final fusion power', value: formatNumber(result.summary.finalFusionPowerMW, 1), unit: 'MW' },
+                        {
+                          label: 'Final temperature',
+                          value: formatNumber(result.summary.finalTemperatureKeV, 2),
+                          unit: 'keV',
+                        },
+                        {
+                          label: 'Peak temperature',
+                          value: formatNumber(result.summary.peakTemperatureKeV, 2),
+                          unit: 'keV',
+                        },
+                        {
+                          label: 'Final fusion power',
+                          value: formatNumber(result.summary.finalFusionPowerMW, 1),
+                          unit: 'MW',
+                        },
                         { label: 'Q_plasma', value: formatNumber(result.summary.finalQPlasma, 2), unit: '—' },
-                        { label: 'Q_engineering', value: formatNumber(result.summary.finalQEngineering, 2), unit: '—' },
-                        { label: 'Min stability', value: formatNumber(result.summary.minStability, 3), unit: '—' },
-                        { label: 'Final net electric', value: formatNumber(result.summary.finalNetElectricMW, 1), unit: 'MW' },
-                        { label: 'Integrated thermal', value: formatNumber(result.summary.integratedThermalGJ, 1), unit: 'GJ' },
-                        { label: 'Integrated net electric', value: formatNumber(result.summary.integratedNetElectricGJ, 1), unit: 'GJ' },
+                        {
+                          label: 'Q_engineering',
+                          value: formatNumber(result.summary.finalQEngineering, 2),
+                          unit: '—',
+                        },
+                        {
+                          label: 'Min stability',
+                          value: formatNumber(result.summary.minStability, 3),
+                          unit: '—',
+                        },
+                        {
+                          label: 'Final net electric',
+                          value: formatNumber(result.summary.finalNetElectricMW, 1),
+                          unit: 'MW',
+                        },
+                        {
+                          label: 'Integrated thermal',
+                          value: formatNumber(result.summary.integratedThermalGJ, 1),
+                          unit: 'GJ',
+                        },
+                        {
+                          label: 'Integrated net electric',
+                          value: formatNumber(result.summary.integratedNetElectricGJ, 1),
+                          unit: 'GJ',
+                        },
                         { label: 'Alarms raised', value: String(result.summary.alarms), unit: '' },
                       ]}
                     />
@@ -523,7 +669,9 @@ export function SimulationLab() {
                 ))}
               </div>
             ) : (
-              <p className="py-3 text-center text-[10px] text-faint">Run a WHAT-IF analysis to populate this summary.</p>
+              <p className="py-3 text-center text-[10px] text-faint">
+                Run a WHAT-IF analysis to populate this summary.
+              </p>
             )}
           </Panel>
         </div>
@@ -534,11 +682,7 @@ export function SimulationLab() {
             <FaultPanel />
           </Panel>
 
-          <Panel
-            title="Scenario Presets"
-            subtitle={`${presets.length} saved locally`}
-            bodyClassName="!p-2"
-          >
+          <Panel title="Scenario Presets" subtitle={`${presets.length} saved locally`} bodyClassName="!p-2">
             <div className="flex gap-1">
               <input
                 className="field flex-1"
@@ -565,10 +709,15 @@ export function SimulationLab() {
             </div>
             <div className="mt-2 flex max-h-[150px] flex-col gap-1 overflow-y-auto scroll-thin">
               {presets.length === 0 && (
-                <p className="py-2 text-center text-[9px] text-faint">No presets yet. Configure setpoints and save them.</p>
+                <p className="py-2 text-center text-[9px] text-faint">
+                  No presets yet. Configure setpoints and save them.
+                </p>
               )}
               {presets.map((preset) => (
-                <div key={preset.id} className="flex items-center gap-1 rounded-sm border border-edge/50 px-1.5 py-1">
+                <div
+                  key={preset.id}
+                  className="flex items-center gap-1 rounded-sm border border-edge/50 px-1.5 py-1"
+                >
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-[10px] text-ink">{preset.name}</div>
                     <div className="num text-[8px] text-faint">
@@ -578,12 +727,20 @@ export function SimulationLab() {
                   <button type="button" className="btn btn-xs" onClick={() => loadPreset(preset.id)}>
                     LOAD
                   </button>
-                  <button type="button" className="btn btn-xs btn-danger" onClick={() => deletePreset(preset.id)}>
+                  <button
+                    type="button"
+                    className="btn btn-xs btn-danger"
+                    onClick={() => deletePreset(preset.id)}
+                  >
                     ✕
                   </button>
                 </div>
               ))}
             </div>
+          </Panel>
+
+          <Panel title="Guided Demo" subtitle="onboarding tour" bodyClassName="!p-2">
+            <GuidedDemoControls />
           </Panel>
 
           <Panel title="Export & Recording" bodyClassName="!p-2">
@@ -613,8 +770,8 @@ export function SimulationLab() {
                 </button>
               </div>
               <p className="text-[8px] leading-snug text-faint">
-                {formatClock(frame.simTimeS)} simulated · {historyBuffer.size} samples in memory · {sessions.length} saved
-                session(s). Exports are labelled SIMULATED DATA.
+                {formatClock(frame.simTimeS)} simulated · {historyBuffer.size} samples in memory ·{' '}
+                {sessions.length} saved session(s). Exports are labelled SIMULATED DATA.
               </p>
             </div>
           </Panel>
@@ -642,6 +799,78 @@ export function SimulationLab() {
           </Callout>
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Start / restart / reset the guided demo. Kept in the lab so the tour can be
+ * reset without clearing browser storage by hand.
+ */
+function GuidedDemoControls() {
+  const start = useGuidedDemoStore((state) => state.start);
+  const restart = useGuidedDemoStore((state) => state.restart);
+  const resetProgress = useGuidedDemoStore((state) => state.resetProgress);
+  const active = useGuidedDemoStore((state) => state.active);
+  const completed = useGuidedDemoStore((state) => state.completed);
+  const skipped = useGuidedDemoStore((state) => state.skipped);
+  const doNotAutoStart = useGuidedDemoStore((state) => state.doNotAutoStart);
+  const setDoNotAutoStart = useGuidedDemoStore((state) => state.setDoNotAutoStart);
+
+  const statusLabel = active ? 'RUNNING' : completed ? 'COMPLETED' : skipped ? 'SKIPPED' : 'NOT STARTED';
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <span className="label">Tour status</span>
+        <span
+          className={`chip ${
+            active ? 'chip-info' : completed ? 'chip-ok' : skipped ? 'chip-warn' : 'chip-idle'
+          }`}
+        >
+          {statusLabel}
+        </span>
+      </div>
+      <p className="text-[8.5px] leading-snug text-faint">
+        A local, non-modal walkthrough of the console: start the plant, raise heating, read the plasma state,
+        inject and clear a simulated fault, capture history and run a WHAT-IF comparison. It never changes
+        setpoints for you and never touches a real device.
+      </p>
+      <div className="grid grid-cols-2 gap-1">
+        <button
+          type="button"
+          className="btn btn-xs btn-primary"
+          onClick={() => start({ restart: true })}
+          aria-label="Start the guided demo from the first step"
+        >
+          {active ? 'RESTART TOUR' : 'START TOUR'}
+        </button>
+        <button
+          type="button"
+          className="btn btn-xs"
+          onClick={restart}
+          aria-label="Restart the guided demo from step one"
+        >
+          FROM STEP 1
+        </button>
+        <button
+          type="button"
+          className="btn btn-xs col-span-2"
+          onClick={resetProgress}
+          aria-label="Reset guided demo progress and completion flags"
+        >
+          RESET GUIDED DEMO
+        </button>
+      </div>
+      <label className="flex items-center gap-1.5 text-[9px] text-muted">
+        <input
+          type="checkbox"
+          checked={!doNotAutoStart}
+          onChange={(event) => setDoNotAutoStart(!event.target.checked)}
+          className="h-3 w-3 accent-cyan-400"
+        />
+        offer the tour on the next visit
+      </label>
     </div>
   );
 }

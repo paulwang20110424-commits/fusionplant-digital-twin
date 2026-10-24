@@ -51,10 +51,7 @@ import {
   toroidalFieldT,
 } from './MagneticFieldModel';
 import { computeHeatingDelivery, heatingWasteHeatMW, heatingSystemStatus } from './HeatingModel';
-import {
-  computePowerBalance,
-  thermalEfficiencyFromCoolant,
-} from './PowerBalanceModel';
+import { computePowerBalance, thermalEfficiencyFromCoolant } from './PowerBalanceModel';
 import {
   cryoStatus,
   generatorStatus,
@@ -65,8 +62,14 @@ import {
 } from './ThermalModel';
 import { computeStability } from './StabilityModel';
 import { AlarmEngine } from './AlarmEngine';
-import { createRandom, clamp, safeDiv, symmetric } from '@/utils/math';
-import { DEFAULT_CONFIG, DEFAULT_CONTROLS, INITIAL_CONDITIONS_DEFAULT, CONTROL_SPEC_MAP } from './controlSpecs';
+import { clamp, safeDiv, symmetric } from '@/utils/math';
+import { createSeededRandom, generateRunId } from './random';
+import {
+  DEFAULT_CONFIG,
+  DEFAULT_CONTROLS,
+  INITIAL_CONDITIONS_DEFAULT,
+  CONTROL_SPEC_MAP,
+} from './controlSpecs';
 import type { EquipmentItem, HistoryChannel } from '@/types/simulation';
 
 export interface EngineOptions {
@@ -136,6 +139,10 @@ export class FusionSimulationEngine {
   simTimeS = 0;
   wallTimeMs = 0;
   stepCount = 0;
+  /** Stable identifier of the current run; regenerated on reset / seed change. */
+  runId = '';
+  /** Wall-clock start of the current run (ISO derived in exports). */
+  startedAtMs = 0;
   status: SimStatus = 'IDLE';
   phase: PlantPhase = 'STANDBY';
 
@@ -204,7 +211,9 @@ export class FusionSimulationEngine {
     this.initial = { ...INITIAL_CONDITIONS_DEFAULT, ...(options.initial ?? {}) };
     this.scenarioName = options.scenarioName ?? 'Baseline Scenario';
     this.hooks = options.hooks ?? {};
-    this.random = createRandom(this.config.seed);
+    this.startedAtMs = Date.now();
+    this.random = createSeededRandom(this.config.seed);
+    this.runId = generateRunId(this.config.seed, this.startedAtMs);
 
     this.temperatureKeV = this.initial.temperatureKeV;
     this.density = this.initial.densityM3;
@@ -302,7 +311,9 @@ export class FusionSimulationEngine {
     this.alarms = [];
     this.raisedCount = 0;
     this.lastAlarmEvalS = -1;
-    this.random = createRandom(this.config.seed);
+    this.startedAtMs = Date.now();
+    this.random = createSeededRandom(this.config.seed);
+    this.runId = generateRunId(this.config.seed, this.startedAtMs);
     this.power = this.buildPowerState(0, 0, 0);
     this.emitEvent('SIM', 'INFO', 'Simulation reset', `Initial T = ${this.initial.temperatureKeV} keV`);
   }
@@ -325,7 +336,9 @@ export class FusionSimulationEngine {
     const previousSeed = this.config.seed;
     this.config = { ...this.config, ...patch };
     if (patch.seed !== undefined && patch.seed !== previousSeed) {
-      this.random = createRandom(this.config.seed);
+      this.random = createSeededRandom(this.config.seed);
+      this.startedAtMs = Date.now();
+      this.runId = generateRunId(this.config.seed, this.startedAtMs);
     }
     if (patch.seed !== undefined || patch.timeScale !== undefined) {
       this.emitEvent(
@@ -363,7 +376,12 @@ export class FusionSimulationEngine {
     if (!fault || !fault.active) return;
     fault.active = false;
     fault.clearedAtS = this.simTimeS;
-    this.emitEvent('FAULT', 'INFO', `Fault cleared: ${fault.kind}`, `Active for ${(this.simTimeS - fault.injectedAtS).toFixed(1)} s simulated`);
+    this.emitEvent(
+      'FAULT',
+      'INFO',
+      `Fault cleared: ${fault.kind}`,
+      `Active for ${(this.simTimeS - fault.injectedAtS).toFixed(1)} s simulated`,
+    );
   }
 
   clearAllFaults(): void {
@@ -531,7 +549,8 @@ export class FusionSimulationEngine {
     const currentDrive =
       this.status === 'EMERGENCY_STOP' ? 0 : currentTarget * (1 + 0.02 * this.disturbanceSlow);
     this.plasmaCurrentMA = clamp(
-      this.plasmaCurrentMA + (currentDrive - this.plasmaCurrentMA) * (1 - Math.exp(-dt / DYNAMICS.currentTauS)),
+      this.plasmaCurrentMA +
+        (currentDrive - this.plasmaCurrentMA) * (1 - Math.exp(-dt / DYNAMICS.currentTauS)),
       0,
       25,
     );
@@ -600,16 +619,8 @@ export class FusionSimulationEngine {
 
     /* --- thermal loop -------------------------------------------------- */
     const wasteHeatMW = heatingWasteHeatMW(delivery, config.auxHeatRecovery);
-    this.thermalPowerMW = clamp(
-      this.fusionPowerMW + delivery.totalDeliveredMW + wasteHeatMW,
-      0,
-      20000,
-    );
-    this.coolantFlowKgS = clamp(
-      controls.coolantFlowKgS * (1 - 0.65 * effects.coolantLoss),
-      500,
-      20000,
-    );
+    this.thermalPowerMW = clamp(this.fusionPowerMW + delivery.totalDeliveredMW + wasteHeatMW, 0, 20000);
+    this.coolantFlowKgS = clamp(controls.coolantFlowKgS * (1 - 0.65 * effects.coolantLoss), 500, 20000);
     const exchangerAvailability = 1 - 0.45 * effects.coolantLoss;
     const coolant = stepCoolantTemperatures({
       inletC: this.coolantInletC,
@@ -623,7 +634,11 @@ export class FusionSimulationEngine {
     this.coolantInletC = coolant.inletC;
     this.coolantOutletC = coolant.outletC;
     this.coolantDeltaT = coolant.deltaTK;
-    this.heatExchangerLoadPct = heatExchangerLoadPct(this.thermalPowerMW, this.coolantFlowKgS, exchangerAvailability);
+    this.heatExchangerLoadPct = heatExchangerLoadPct(
+      this.thermalPowerMW,
+      this.coolantFlowKgS,
+      exchangerAvailability,
+    );
 
     /* --- cryogenics / coils -------------------------------------------- */
     const cryoCapacity = 1 - 0.55 * effects.coolantLoss;
@@ -688,7 +703,12 @@ export class FusionSimulationEngine {
       this.raisedCount += raised.length;
       this.alarms = this.alarmEngine.activeAlarms();
       for (const alarm of raised) {
-        this.emitEvent('ALARM', alarm.level, `${alarm.level}: ${alarm.message}`, `${alarm.source} = ${alarm.value}`);
+        this.emitEvent(
+          'ALARM',
+          alarm.level,
+          `${alarm.level}: ${alarm.message}`,
+          `${alarm.source} = ${alarm.value}`,
+        );
       }
       for (const alarm of cleared) {
         this.emitEvent('ALARM', 'INFO', `Cleared: ${alarm.message}`, `${alarm.source} back in range`);
@@ -728,7 +748,12 @@ export class FusionSimulationEngine {
       this.lastPhase = next;
       this.phase = next;
       if (next !== 'STANDBY') {
-        this.emitEvent('PHASE', 'INFO', `Plant phase: ${next}`, `t = ${this.simTimeS.toFixed(1)} s simulated`);
+        this.emitEvent(
+          'PHASE',
+          'INFO',
+          `Plant phase: ${next}`,
+          `t = ${this.simTimeS.toFixed(1)} s simulated`,
+        );
       }
     } else {
       this.phase = next;
@@ -789,9 +814,9 @@ export class FusionSimulationEngine {
         controls: this.controls,
         heatingGridMW:
           override?.heatingGridMW ??
-          (this.controls.nbiPowerMW / HEATING_EFFICIENCY.nbiWallPlug +
+          this.controls.nbiPowerMW / HEATING_EFFICIENCY.nbiWallPlug +
             this.controls.echPowerMW / HEATING_EFFICIENCY.echWallPlug +
-            this.controls.ichPowerMW / HEATING_EFFICIENCY.ichWallPlug),
+            this.controls.ichPowerMW / HEATING_EFFICIENCY.ichWallPlug,
       },
       this.storedEnergyMJ,
     );
@@ -885,9 +910,27 @@ export class FusionSimulationEngine {
         };
 
     const status: Record<string, SensorStatus> = {
-      temperature: effects.sensorDropout ? 'LOST' : effects.sensorLatency > 0 ? 'LAGGED' : effects.sensorBias > 0 ? 'DEGRADED' : 'OK',
-      density: effects.sensorDropout ? 'LOST' : effects.sensorLatency > 0 ? 'LAGGED' : effects.sensorBias > 0 ? 'DEGRADED' : 'OK',
-      fusionPower: effects.sensorDropout ? 'LOST' : effects.sensorLatency > 0 ? 'LAGGED' : effects.sensorBias > 0 ? 'DEGRADED' : 'OK',
+      temperature: effects.sensorDropout
+        ? 'LOST'
+        : effects.sensorLatency > 0
+          ? 'LAGGED'
+          : effects.sensorBias > 0
+            ? 'DEGRADED'
+            : 'OK',
+      density: effects.sensorDropout
+        ? 'LOST'
+        : effects.sensorLatency > 0
+          ? 'LAGGED'
+          : effects.sensorBias > 0
+            ? 'DEGRADED'
+            : 'OK',
+      fusionPower: effects.sensorDropout
+        ? 'LOST'
+        : effects.sensorLatency > 0
+          ? 'LAGGED'
+          : effects.sensorBias > 0
+            ? 'DEGRADED'
+            : 'OK',
       coilTemperature: effects.sensorLatency > 0 ? 'LAGGED' : effects.sensorBias > 0 ? 'DEGRADED' : 'OK',
       coolantFlow: effects.sensorLatency > 0 ? 'LAGGED' : effects.sensorBias > 0 ? 'DEGRADED' : 'OK',
       vacuumPressure: effects.sensorDropout ? 'LOST' : effects.sensorLatency > 0 ? 'LAGGED' : 'OK',
@@ -957,18 +1000,104 @@ export class FusionSimulationEngine {
             : 'STANDBY';
 
     return [
-      { id: 'tf-coil', name: 'Toroidal Field Coils', subsystem: 'MAGNET', status: coilStatus, online: coilStatus !== 'FAULT', detail: `${this.coilCurrentKA.toFixed(1)} kA / ${this.fieldToroidalT.toFixed(2)} T` },
-      { id: 'pf-coil', name: 'Poloidal Field Coils', subsystem: 'MAGNET', status: this.plasmaCurrentMA > 0.5 ? 'RUNNING' : 'STANDBY', online: true, detail: `${this.fieldPoloidalT.toFixed(2)} T edge` },
-      { id: 'cryo', name: 'Cryogenic Plant', subsystem: 'MAGNET', status: cStatus, online: cStatus !== 'FAULT', detail: `${this.cryoLoad.toFixed(0)} % load` },
-      { id: 'nbi', name: 'Neutral Beam Injector', subsystem: 'HEATING', status: heatingStatusNbi, online: heatingStatusNbi !== 'FAULT' && heatingStatusNbi !== 'TRIPPED', detail: `${this.controls.nbiPowerMW.toFixed(0)} MW command` },
-      { id: 'ech', name: 'Electron Cyclotron', subsystem: 'HEATING', status: heatingStatusEch, online: heatingStatusEch !== 'FAULT' && heatingStatusEch !== 'TRIPPED', detail: `${this.controls.echPowerMW.toFixed(0)} MW command` },
-      { id: 'ich', name: 'Ion Cyclotron', subsystem: 'HEATING', status: heatingStatusIch, online: heatingStatusIch !== 'FAULT' && heatingStatusIch !== 'TRIPPED', detail: `${this.controls.ichPowerMW.toFixed(0)} MW command` },
-      { id: 'coolant-pump', name: 'Primary Coolant Pumps', subsystem: 'COOLING', status: effects.coolantLoss > 0.4 ? 'DEGRADED' : this.coolantFlowKgS > 500 ? 'RUNNING' : 'STANDBY', online: true, detail: `${this.coolantFlowKgS.toFixed(0)} kg/s` },
-      { id: 'heat-exchanger', name: 'Heat Exchanger', subsystem: 'COOLING', status: this.heatExchangerLoadPct > 92 ? 'DEGRADED' : this.thermalPowerMW > 20 ? 'RUNNING' : 'STANDBY', online: this.heatExchangerLoadPct < 145, detail: `${this.heatExchangerLoadPct.toFixed(0)} % duty` },
-      { id: 'turbine', name: 'Steam Turbine', subsystem: 'POWER', status: tStatus, online: tStatus !== 'TRIPPED', detail: tStatus === 'STANDBY' ? 'awaiting thermal duty' : `${this.thermalPowerMW.toFixed(0)} MWth in` },
-      { id: 'generator', name: 'Generator', subsystem: 'POWER', status: gStatus, online: gStatus !== 'TRIPPED', detail: `${this.power.electricalOutputMW.toFixed(1)} MWe out` },
-      { id: 'vacuum-pumps', name: 'Vacuum Pumping', subsystem: 'VACUUM', status: effects.vacuumLeakPaPerS > 0 ? 'DEGRADED' : 'RUNNING', online: true, detail: `${this.vacuumPressurePa.toExponential(1)} Pa` },
-      { id: 'plasma-control', name: 'Plasma Control System', subsystem: 'CONTROL', status: this.stabilityMetrics.stability < 0.5 ? 'DEGRADED' : this.status === 'IDLE' ? 'STANDBY' : 'RUNNING', online: true, detail: `stability ${(this.stabilityMetrics.stability * 100).toFixed(0)} %` },
+      {
+        id: 'tf-coil',
+        name: 'Toroidal Field Coils',
+        subsystem: 'MAGNET',
+        status: coilStatus,
+        online: coilStatus !== 'FAULT',
+        detail: `${this.coilCurrentKA.toFixed(1)} kA / ${this.fieldToroidalT.toFixed(2)} T`,
+      },
+      {
+        id: 'pf-coil',
+        name: 'Poloidal Field Coils',
+        subsystem: 'MAGNET',
+        status: this.plasmaCurrentMA > 0.5 ? 'RUNNING' : 'STANDBY',
+        online: true,
+        detail: `${this.fieldPoloidalT.toFixed(2)} T edge`,
+      },
+      {
+        id: 'cryo',
+        name: 'Cryogenic Plant',
+        subsystem: 'MAGNET',
+        status: cStatus,
+        online: cStatus !== 'FAULT',
+        detail: `${this.cryoLoad.toFixed(0)} % load`,
+      },
+      {
+        id: 'nbi',
+        name: 'Neutral Beam Injector',
+        subsystem: 'HEATING',
+        status: heatingStatusNbi,
+        online: heatingStatusNbi !== 'FAULT' && heatingStatusNbi !== 'TRIPPED',
+        detail: `${this.controls.nbiPowerMW.toFixed(0)} MW command`,
+      },
+      {
+        id: 'ech',
+        name: 'Electron Cyclotron',
+        subsystem: 'HEATING',
+        status: heatingStatusEch,
+        online: heatingStatusEch !== 'FAULT' && heatingStatusEch !== 'TRIPPED',
+        detail: `${this.controls.echPowerMW.toFixed(0)} MW command`,
+      },
+      {
+        id: 'ich',
+        name: 'Ion Cyclotron',
+        subsystem: 'HEATING',
+        status: heatingStatusIch,
+        online: heatingStatusIch !== 'FAULT' && heatingStatusIch !== 'TRIPPED',
+        detail: `${this.controls.ichPowerMW.toFixed(0)} MW command`,
+      },
+      {
+        id: 'coolant-pump',
+        name: 'Primary Coolant Pumps',
+        subsystem: 'COOLING',
+        status: effects.coolantLoss > 0.4 ? 'DEGRADED' : this.coolantFlowKgS > 500 ? 'RUNNING' : 'STANDBY',
+        online: true,
+        detail: `${this.coolantFlowKgS.toFixed(0)} kg/s`,
+      },
+      {
+        id: 'heat-exchanger',
+        name: 'Heat Exchanger',
+        subsystem: 'COOLING',
+        status:
+          this.heatExchangerLoadPct > 92 ? 'DEGRADED' : this.thermalPowerMW > 20 ? 'RUNNING' : 'STANDBY',
+        online: this.heatExchangerLoadPct < 145,
+        detail: `${this.heatExchangerLoadPct.toFixed(0)} % duty`,
+      },
+      {
+        id: 'turbine',
+        name: 'Steam Turbine',
+        subsystem: 'POWER',
+        status: tStatus,
+        online: tStatus !== 'TRIPPED',
+        detail: tStatus === 'STANDBY' ? 'awaiting thermal duty' : `${this.thermalPowerMW.toFixed(0)} MWth in`,
+      },
+      {
+        id: 'generator',
+        name: 'Generator',
+        subsystem: 'POWER',
+        status: gStatus,
+        online: gStatus !== 'TRIPPED',
+        detail: `${this.power.electricalOutputMW.toFixed(1)} MWe out`,
+      },
+      {
+        id: 'vacuum-pumps',
+        name: 'Vacuum Pumping',
+        subsystem: 'VACUUM',
+        status: effects.vacuumLeakPaPerS > 0 ? 'DEGRADED' : 'RUNNING',
+        online: true,
+        detail: `${this.vacuumPressurePa.toExponential(1)} Pa`,
+      },
+      {
+        id: 'plasma-control',
+        name: 'Plasma Control System',
+        subsystem: 'CONTROL',
+        status:
+          this.stabilityMetrics.stability < 0.5 ? 'DEGRADED' : this.status === 'IDLE' ? 'STANDBY' : 'RUNNING',
+        online: true,
+        detail: `stability ${(this.stabilityMetrics.stability * 100).toFixed(0)} %`,
+      },
     ];
   }
 
@@ -985,6 +1114,7 @@ export class FusionSimulationEngine {
       status: this.status,
       phase: this.phase,
       scenarioName: this.scenarioName,
+      runId: this.runId,
       plasma: {
         temperatureKeV: this.temperatureKeV,
         electronDensity: this.density,
@@ -1013,14 +1143,29 @@ export class FusionSimulationEngine {
         q95: this.q95,
       },
       heating: {
-        nbiDeliveredMW: (this.controls.nbiPowerMW * HEATING_EFFICIENCY.nbiCoupling * (1 - 0.78 * effects.heatingDroop)),
-        echDeliveredMW: (this.controls.echPowerMW * HEATING_EFFICIENCY.echCoupling * (1 - 0.45 * effects.heatingDroop)),
-        ichDeliveredMW: (this.controls.ichPowerMW * HEATING_EFFICIENCY.ichCoupling * (1 - 0.4 * effects.heatingDroop)),
+        nbiDeliveredMW:
+          this.controls.nbiPowerMW * HEATING_EFFICIENCY.nbiCoupling * (1 - 0.78 * effects.heatingDroop),
+        echDeliveredMW:
+          this.controls.echPowerMW * HEATING_EFFICIENCY.echCoupling * (1 - 0.45 * effects.heatingDroop),
+        ichDeliveredMW:
+          this.controls.ichPowerMW * HEATING_EFFICIENCY.ichCoupling * (1 - 0.4 * effects.heatingDroop),
         totalDeliveredMW: this.power.auxiliaryHeatingMW,
         wallPlugMW: this.power.loads.heating,
-        nbiStatus: heatingSystemStatus(this.controls.nbiPowerMW, 1 - 0.78 * effects.heatingDroop, this.status === 'EMERGENCY_STOP'),
-        echStatus: heatingSystemStatus(this.controls.echPowerMW, 1 - 0.45 * effects.heatingDroop, this.status === 'EMERGENCY_STOP'),
-        ichStatus: heatingSystemStatus(this.controls.ichPowerMW, 1 - 0.4 * effects.heatingDroop, this.status === 'EMERGENCY_STOP'),
+        nbiStatus: heatingSystemStatus(
+          this.controls.nbiPowerMW,
+          1 - 0.78 * effects.heatingDroop,
+          this.status === 'EMERGENCY_STOP',
+        ),
+        echStatus: heatingSystemStatus(
+          this.controls.echPowerMW,
+          1 - 0.45 * effects.heatingDroop,
+          this.status === 'EMERGENCY_STOP',
+        ),
+        ichStatus: heatingSystemStatus(
+          this.controls.ichPowerMW,
+          1 - 0.4 * effects.heatingDroop,
+          this.status === 'EMERGENCY_STOP',
+        ),
       },
       thermal: {
         coolantInletC: this.coolantInletC,
@@ -1113,6 +1258,7 @@ export function summarizeSeries(series: HistorySample[]): WhatIfResult['summary'
     integratedNetElectricGJ: 0,
     integratedHeatingGJ: 0,
     finalCoilTempK: 0,
+    finalCoolantOutC: 0,
     finalDensity: 0,
     alarms: 0,
   };
@@ -1140,8 +1286,7 @@ export function summarizeSeries(series: HistorySample[]): WhatIfResult['summary'
   }
 
   const last = series[series.length - 1];
-  const meanHeating =
-    series.reduce((acc, s) => acc + s.heatingPower, 0) / Math.max(series.length, 1);
+  const meanHeating = series.reduce((acc, s) => acc + s.heatingPower, 0) / Math.max(series.length, 1);
 
   return {
     finalTemperatureKeV: last.temperature,
@@ -1158,6 +1303,7 @@ export function summarizeSeries(series: HistorySample[]): WhatIfResult['summary'
     integratedNetElectricGJ,
     integratedHeatingGJ,
     finalCoilTempK: last.coilTemperature,
+    finalCoolantOutC: last.coolantOut,
     finalDensity: last.density,
     alarms: 0,
   };

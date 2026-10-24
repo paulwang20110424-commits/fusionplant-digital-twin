@@ -22,9 +22,18 @@ import {
   stepCoilTemperature,
   toroidalFieldT,
 } from '@/simulation/MagneticFieldModel';
-import { computeHeatingDelivery, heatingElectricalLoadMW, heatingWasteHeatMW } from '@/simulation/HeatingModel';
+import {
+  computeHeatingDelivery,
+  heatingElectricalLoadMW,
+  heatingWasteHeatMW,
+} from '@/simulation/HeatingModel';
 import { computePowerBalance } from '@/simulation/PowerBalanceModel';
-import { coolantDeltaTK, heatExchangerLoadPct, stepCoolantTemperatures, stepVacuumPressure } from '@/simulation/ThermalModel';
+import {
+  coolantDeltaTK,
+  heatExchangerLoadPct,
+  stepCoolantTemperatures,
+  stepVacuumPressure,
+} from '@/simulation/ThermalModel';
 import { computeStability } from '@/simulation/StabilityModel';
 import { DEFAULT_CONTROLS } from '@/simulation/controlSpecs';
 import type { PowerBalanceInput } from '@/simulation/PowerBalanceModel';

@@ -11,6 +11,7 @@ import { ChartWindowSelector, ChartPauseButton } from '@/components/charts/Chart
 import { TrendChart } from '@/components/charts/TrendChart';
 import { CHART_CONFIGS } from '@/components/charts/chartConfigs';
 import { useSimulationStore } from '@/store/simulationStore';
+import { useAlarmBuckets } from '@/store/selectors';
 import { formatNumber, formatSigned } from '@/utils/units';
 
 const TREND_TABS = [
@@ -69,11 +70,26 @@ function PowerBalancePanel() {
       <ParameterTable
         dense
         rows={[
-          { label: 'Fusion power', value: formatNumber(power.fusionPowerMW, 1), unit: 'MW', highlight: 'fusion' },
+          {
+            label: 'Fusion power',
+            value: formatNumber(power.fusionPowerMW, 1),
+            unit: 'MW',
+            highlight: 'fusion',
+          },
           { label: 'Aux heating (delivered)', value: formatNumber(power.auxiliaryHeatingMW, 1), unit: 'MW' },
           { label: 'Thermal output', value: formatNumber(power.thermalOutputMW, 0), unit: 'MWth' },
-          { label: 'Gross electric', value: formatNumber(power.electricalOutputMW, 1), unit: 'MWe', highlight: 'ok' },
-          { label: 'Plant auxiliary', value: formatNumber(power.plantAuxiliaryMW, 1), unit: 'MWe', highlight: 'warn' },
+          {
+            label: 'Gross electric',
+            value: formatNumber(power.electricalOutputMW, 1),
+            unit: 'MWe',
+            highlight: 'ok',
+          },
+          {
+            label: 'Plant auxiliary',
+            value: formatNumber(power.plantAuxiliaryMW, 1),
+            unit: 'MWe',
+            highlight: 'warn',
+          },
           {
             label: 'Net electric',
             value: formatSigned(power.netElectricMW, 1),
@@ -90,8 +106,8 @@ function PowerBalancePanel() {
         ]}
       />
       <p className="mt-1.5 border-t border-edge/40 pt-1 text-[8px] leading-snug text-faint">
-        Q_engineering = net electric / on-site electric input. Heating wall-plug, magnets, cryogenics, pumps and
-        controls are all counted. Q_plasma is a plasma-level ratio and is never equal to plant efficiency.
+        Q_engineering = net electric / on-site electric input. Heating wall-plug, magnets, cryogenics, pumps
+        and controls are all counted. Q_plasma is a plasma-level ratio and is never equal to plant efficiency.
       </p>
     </Panel>
   );
@@ -99,6 +115,7 @@ function PowerBalancePanel() {
 
 export function Overview() {
   const frame = useSimulationStore((state) => state.frame);
+  const buckets = useAlarmBuckets();
   const power = frame.power;
   const plasma = frame.plasma;
 
@@ -111,11 +128,21 @@ export function Overview() {
     <div className="grid h-full min-h-0 grid-cols-1 gap-2 overflow-y-auto scroll-thin p-2 xl:grid-cols-[286px_minmax(0,1fr)_338px] xl:overflow-hidden">
       {/* ---------------- left: subsystems & controls ---------------- */}
       <div className="flex min-h-0 flex-col gap-2 overflow-y-auto scroll-thin xl:overflow-hidden">
-        <Panel title="Subsystem Status" subtitle="12 modelled devices" className="h-[290px] shrink-0" bodyClassName="!p-1.5">
+        <Panel
+          title="Subsystem Status"
+          subtitle="12 modelled devices"
+          className="h-[290px] shrink-0"
+          bodyClassName="!p-1.5"
+        >
           <EquipmentList />
         </Panel>
 
-        <Panel title="Quick Controls" subtitle="live setpoints" className="h-[218px] shrink-0" bodyClassName="!p-2">
+        <Panel
+          title="Quick Controls"
+          subtitle="live setpoints"
+          className="h-[218px] shrink-0"
+          bodyClassName="!p-2"
+        >
           <div className="flex flex-col gap-2.5">
             <ControlSlider controlKey="nbiPowerMW" compact />
             <ControlSlider controlKey="echPowerMW" compact />
@@ -127,21 +154,31 @@ export function Overview() {
           </div>
         </Panel>
 
-        <Panel title="Fault Injection" subtitle="quick access" className="min-h-[220px] flex-1" bodyClassName="!p-2">
+        <Panel
+          title="Fault Injection"
+          subtitle="quick access"
+          className="min-h-[220px] flex-1"
+          bodyClassName="!p-2"
+        >
           <FaultPanel compact />
         </Panel>
       </div>
 
       {/* ---------------- center: 3D + trends ---------------- */}
       <div className="flex min-h-0 flex-col gap-2">
-        <ReactorView className="min-h-[300px] flex-1" />
+        <ReactorView className="min-h-[300px] flex-1" demoId="reactor-view" />
         <LiveTrendsPanel />
       </div>
 
       {/* ---------------- right: KPIs & alarms ---------------- */}
       <div className="flex min-h-0 flex-col gap-2 overflow-y-auto scroll-thin xl:overflow-hidden">
-        <Panel title="Live Plant KPIs" subtitle="simulated telemetry" className="h-[252px] shrink-0" bodyClassName="!p-1.5">
-          <div className="grid grid-cols-2 gap-1.5">
+        <Panel
+          title="Live Plant KPIs"
+          subtitle="simulated telemetry"
+          className="h-[252px] shrink-0"
+          bodyClassName="!p-1.5"
+        >
+          <div className="grid grid-cols-2 gap-1.5" data-demo="kpi-grid">
             <MetricTile
               label="Fusion Power"
               value={formatNumber(power.fusionPowerMW, 1)}
@@ -149,6 +186,9 @@ export function Overview() {
               channel="fusionPower"
               color="#d946ef"
               status={power.fusionPowerMW > 50 ? 'ok' : 'idle'}
+              valueScale={1}
+              trendUnit="MW"
+              trendDigits={1}
             />
             <MetricTile
               label="Q Plasma"
@@ -157,6 +197,8 @@ export function Overview() {
               channel="qPlasma"
               color="#a78bfa"
               status="idle"
+              valueScale={1}
+              trendDigits={2}
             />
             <MetricTile
               label="Temp"
@@ -165,6 +207,8 @@ export function Overview() {
               channel="temperature"
               color="#22d3ee"
               status={tempStatus as 'ok' | 'warn' | 'crit'}
+              valueScale={1}
+              trendUnit="keV"
               trendDigits={2}
             />
             <MetricTile
@@ -173,6 +217,10 @@ export function Overview() {
               unit="×10¹⁹"
               channel="density"
               color="#7dd3fc"
+              // m^-3 -> 1e19 m^-3: the delta must be shown in the same unit as the value
+              valueScale={1e-19}
+              trendUnit="×10¹⁹"
+              trendDigits={2}
             />
             <MetricTile
               label="Net Electric"
@@ -181,6 +229,8 @@ export function Overview() {
               channel="netElectric"
               color="#facc15"
               status={netStatus as 'ok' | 'warn'}
+              valueScale={1}
+              trendUnit="MW"
               trendDigits={0}
             />
             <MetricTile
@@ -190,6 +240,9 @@ export function Overview() {
               channel="stability"
               color="#a3e635"
               status={stabilityStatus as 'ok' | 'warn' | 'crit'}
+              // 0..1 index -> percentage points
+              valueScale={100}
+              trendUnit="%"
               trendDigits={1}
             />
             <MetricTile
@@ -198,6 +251,8 @@ export function Overview() {
               unit="MA"
               channel="current"
               color="#38bdf8"
+              valueScale={1}
+              trendUnit="MA"
               trendDigits={2}
             />
             <MetricTile
@@ -206,6 +261,8 @@ export function Overview() {
               unit="MJ"
               channel="storedEnergy"
               color="#c084fc"
+              valueScale={1}
+              trendUnit="MJ"
               trendDigits={0}
             />
           </div>
@@ -215,7 +272,7 @@ export function Overview() {
 
         <Panel
           title="Alarm & Event Supervision"
-          subtitle={`${frame.alarms.filter((alarm) => alarm.active).length} active`}
+          subtitle={`${buckets.alarmCount} active ${buckets.alarmCount === 1 ? 'alarm' : 'alarms'} · ${buckets.noticeCount} ${buckets.noticeCount === 1 ? 'notice' : 'notices'}`}
           className="min-h-[200px] flex-1"
           bodyClassName="!p-1"
         >

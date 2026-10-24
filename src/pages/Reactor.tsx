@@ -37,8 +37,18 @@ export function Reactor() {
             <ParameterTable
               dense
               rows={[
-                { label: 'Plasma temperature', value: formatNumber(plasma.temperatureKeV, 2), unit: 'keV', highlight: 'fusion' },
-                { label: 'Electron density', value: formatDensity(plasma.electronDensity), unit: '', highlight: 'fusion' },
+                {
+                  label: 'Plasma temperature',
+                  value: formatNumber(plasma.temperatureKeV, 2),
+                  unit: 'keV',
+                  highlight: 'fusion',
+                },
+                {
+                  label: 'Electron density',
+                  value: formatDensity(plasma.electronDensity),
+                  unit: '',
+                  highlight: 'fusion',
+                },
                 { label: 'Plasma current', value: formatNumber(plasma.currentMA, 2), unit: 'MA' },
                 { label: 'Plasma pressure', value: formatNumber(plasma.pressureKPa, 1), unit: 'kPa' },
                 { label: 'Confinement time', value: formatNumber(plasma.confinementTimeS, 2), unit: 's' },
@@ -124,6 +134,9 @@ export function Reactor() {
                 channel="fusionPower"
                 color="#d946ef"
                 status="ok"
+                valueScale={1}
+                trendUnit="MW"
+                trendDigits={1}
               />
               <MetricTile
                 label="Q Plasma"
@@ -131,16 +144,30 @@ export function Reactor() {
                 unit="—"
                 channel="qPlasma"
                 color="#a78bfa"
+                valueScale={1}
+                trendDigits={2}
               />
             </div>
             <ParameterTable
               dense
               rows={[
-                { label: 'Aux heating absorbed', value: formatNumber(frame.power.auxiliaryHeatingMW, 1), unit: 'MW' },
+                {
+                  label: 'Aux heating absorbed',
+                  value: formatNumber(frame.power.auxiliaryHeatingMW, 1),
+                  unit: 'MW',
+                },
                 { label: 'Alpha self-heating', value: formatNumber(plasma.alphaPowerMW, 1), unit: 'MW' },
                 { label: 'Radiated losses', value: formatNumber(plasma.radiatedPowerMW, 1), unit: 'MW' },
-                { label: 'Thermal output', value: formatNumber(frame.power.thermalOutputMW, 0), unit: 'MWth' },
-                { label: 'Q_engineering (site)', value: formatNumber(frame.power.qEngineering, 2), unit: '—' },
+                {
+                  label: 'Thermal output',
+                  value: formatNumber(frame.power.thermalOutputMW, 0),
+                  unit: 'MWth',
+                },
+                {
+                  label: 'Q_engineering (site)',
+                  value: formatNumber(frame.power.qEngineering, 2),
+                  unit: '—',
+                },
               ]}
             />
           </Panel>

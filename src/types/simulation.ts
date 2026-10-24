@@ -13,13 +13,7 @@ export type SimStatus = 'IDLE' | 'RUNNING' | 'PAUSED' | 'EMERGENCY_STOP';
 export type PlantPhase = 'STANDBY' | 'RAMP_UP' | 'FLAT_TOP' | 'RAMP_DOWN' | 'SCRAM';
 
 /** Generic state machine used by balance-of-plant equipment models. */
-export type EquipmentStatus =
-  | 'OFFLINE'
-  | 'STANDBY'
-  | 'RUNNING'
-  | 'DEGRADED'
-  | 'FAULT'
-  | 'TRIPPED';
+export type EquipmentStatus = 'OFFLINE' | 'STANDBY' | 'RUNNING' | 'DEGRADED' | 'FAULT' | 'TRIPPED';
 
 export type AlarmLevel = 'INFO' | 'WARNING' | 'CRITICAL';
 
@@ -224,6 +218,8 @@ export interface SimFrame {
   status: SimStatus;
   phase: PlantPhase;
   scenarioName: string;
+  /** Stable identifier of the current run (changes on reset/seed change). */
+  runId: string;
   plasma: PlasmaState;
   magnetic: MagneticState;
   heating: HeatingState;
@@ -299,14 +295,7 @@ export interface AlarmRecord {
   active: boolean;
 }
 
-export type EventCategory =
-  | 'CONTROL'
-  | 'PHASE'
-  | 'FAULT'
-  | 'ALARM'
-  | 'SIM'
-  | 'EXPORT'
-  | 'PRESET';
+export type EventCategory = 'CONTROL' | 'PHASE' | 'FAULT' | 'ALARM' | 'SIM' | 'EXPORT' | 'PRESET';
 
 export interface EventRecord {
   id: string;
@@ -362,12 +351,7 @@ export type HistoryChannel = Exclude<keyof HistorySample, 't' | 'wallMs'>;
 /* Scenarios / presets                                                 */
 /* ------------------------------------------------------------------ */
 
-export type ScenarioId =
-  | 'BASELINE'
-  | 'HIGH_HEATING'
-  | 'COOLING_STRESS'
-  | 'MAGNETIC_DISTURBANCE'
-  | 'CUSTOM';
+export type ScenarioId = 'BASELINE' | 'HIGH_HEATING' | 'COOLING_STRESS' | 'MAGNETIC_DISTURBANCE' | 'CUSTOM';
 
 export interface ScenarioDefinition {
   id: ScenarioId;
@@ -420,6 +404,7 @@ export interface WhatIfResult {
     integratedNetElectricGJ: number;
     integratedHeatingGJ: number;
     finalCoilTempK: number;
+    finalCoolantOutC: number;
     finalDensity: number;
     alarms: number;
   };
@@ -470,6 +455,24 @@ export interface PersistedSession {
   durationS: number;
   sampleCount: number;
   approxBytes: number;
+
+  /* --- v1.2.0 reproducibility metadata (all optional: v1.0.0 files lack it) --- */
+  /** Stable identifier of this run, e.g. FUS-20260101-LX9Z2K. */
+  runId?: string;
+  /** PRNG seed that reproduces the run. */
+  randomSeed?: number;
+  /** Application version that produced this session. */
+  appVersion?: string;
+  /** Simulation model version that produced this session. */
+  modelVersion?: string;
+  /** Initial plasma conditions used for the run. */
+  initialConditions?: InitialConditions;
+  /** Fault timeline (injection + clear timestamps). */
+  faults?: FaultInstance[];
+  /** Simulation speed at recording time. */
+  timeScale?: number;
+  /** ISO timestamp of the first sample. */
+  startedAt?: string;
 }
 
 export interface SessionMeta {
@@ -480,4 +483,8 @@ export interface SessionMeta {
   sampleCount: number;
   durationS: number;
   approxBytes: number;
+  runId?: string;
+  randomSeed?: number;
+  appVersion?: string;
+  modelVersion?: string;
 }

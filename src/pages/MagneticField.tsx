@@ -43,10 +43,19 @@ export function MagneticField() {
             <ParameterTable
               dense
               rows={[
-                { label: 'Toroidal field B_tor', value: formatNumber(magnetic.toroidalFieldT, 3), unit: 'T', highlight: 'fusion' },
+                {
+                  label: 'Toroidal field B_tor',
+                  value: formatNumber(magnetic.toroidalFieldT, 3),
+                  unit: 'T',
+                  highlight: 'fusion',
+                },
                 { label: 'Poloidal field B_pol', value: formatNumber(magnetic.poloidalFieldT, 3), unit: 'T' },
                 { label: 'Coil current', value: formatNumber(magnetic.coilCurrentKA, 1), unit: 'kA' },
-                { label: 'Coil setpoint', value: formatNumber(magnetic.coilCurrentSetpointKA, 1), unit: 'kA' },
+                {
+                  label: 'Coil setpoint',
+                  value: formatNumber(magnetic.coilCurrentSetpointKA, 1),
+                  unit: 'kA',
+                },
                 {
                   label: 'Setpoint deviation',
                   value: `${(deviation * 100).toFixed(2)} %`,
@@ -94,13 +103,26 @@ export function MagneticField() {
                 },
                 { label: 'Cryo status', value: frame.thermal.cryoStatus, unit: '' },
                 { label: 'Quench threshold', value: String(COIL_LIMITS.quenchK), unit: 'K' },
-                { label: 'Magnet supply load', value: formatNumber(frame.power.loads.magnets, 1), unit: 'MW' },
-                { label: 'Cryo electrical load', value: formatNumber(frame.power.loads.cryogenics, 1), unit: 'MW' },
+                {
+                  label: 'Magnet supply load',
+                  value: formatNumber(frame.power.loads.magnets, 1),
+                  unit: 'MW',
+                },
+                {
+                  label: 'Cryo electrical load',
+                  value: formatNumber(frame.power.loads.cryogenics, 1),
+                  unit: 'MW',
+                },
               ]}
             />
           </Panel>
 
-          <Panel title="Magnet Setpoints" subtitle="slew rate 1.4 s" className="min-h-[130px] flex-1" bodyClassName="!p-2">
+          <Panel
+            title="Magnet Setpoints"
+            subtitle="slew rate 1.4 s"
+            className="min-h-[130px] flex-1"
+            bodyClassName="!p-2"
+          >
             <div className="flex flex-col gap-2.5">
               <ControlSlider controlKey="coilCurrentSetpointKA" />
               <ControlSlider controlKey="plasmaCurrentTargetMA" />
@@ -134,12 +156,7 @@ export function MagneticField() {
               </>
             }
           >
-            <TrendChart
-              series={CHART_CONFIGS.field.series}
-              leftUnit="T"
-              rightUnit="kA"
-              showZoom={false}
-            />
+            <TrendChart series={CHART_CONFIGS.field.series} leftUnit="T" rightUnit="kA" showZoom={false} />
           </Panel>
 
           <Panel
@@ -150,12 +167,7 @@ export function MagneticField() {
             bodyClassName="!p-1"
             right={<ChartExportButton />}
           >
-            <TrendChart
-              series={CHART_CONFIGS.cooling.series}
-              leftUnit="K"
-              rightUnit="°C"
-              showZoom={false}
-            />
+            <TrendChart series={CHART_CONFIGS.cooling.series} leftUnit="K" rightUnit="°C" showZoom={false} />
           </Panel>
         </div>
 
@@ -169,11 +181,16 @@ export function MagneticField() {
               <li>{MAGNET_MODEL_NOTES.coilThermal}</li>
             </ul>
             <p className="mt-1 text-[8px] leading-snug opacity-75">
-              Cold-mass thermal capacitance and conductance are compressed for interactive demonstration; the 26 kJ/K
-              lump is not a physical value of any real magnet.
+              Cold-mass thermal capacitance and conductance are compressed for interactive demonstration; the
+              26 kJ/K lump is not a physical value of any real magnet.
             </p>
           </Callout>
-          <Panel title="Field Quality Notes" subtitle="what degrades it" className="min-h-[130px] flex-1" bodyClassName="!p-2">
+          <Panel
+            title="Field Quality Notes"
+            subtitle="what degrades it"
+            className="min-h-[130px] flex-1"
+            bodyClassName="!p-2"
+          >
             <ul className="space-y-1 text-[9px] leading-snug text-muted">
               <li>· Coil current lag behind setpoint (L/R time constant 1.4 s)</li>
               <li>· Cold-mass temperature rise reduces achievable field quality</li>

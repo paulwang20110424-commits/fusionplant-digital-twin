@@ -5,7 +5,11 @@ export function clamp(value: number, min: number, max: number): number {
   return value < min ? min : value > max ? max : value;
 }
 
-export function safeDiv(numerator: number, denominator: number, fallback: number | null = null): number | null {
+export function safeDiv(
+  numerator: number,
+  denominator: number,
+  fallback: number | null = null,
+): number | null {
   if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator === 0) {
     return fallback;
   }

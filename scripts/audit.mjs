@@ -36,7 +36,8 @@ page.on('console', (message) => {
 page.on('pageerror', (error) => pageErrors.push(`${error.message}`));
 page.on('requestfailed', (request) => {
   // favicon and devtools probes are irrelevant
-  if (!request.url().includes('favicon')) failedRequests.push(`${request.url()} :: ${request.failure()?.errorText}`);
+  if (!request.url().includes('favicon'))
+    failedRequests.push(`${request.url()} :: ${request.failure()?.errorText}`);
 });
 
 const layout = async (label) => {
@@ -124,7 +125,10 @@ await nbiSlider.evaluate((element) => {
 await page.waitForTimeout(1500);
 const nbiReadout = await page.locator('header').first().innerText();
 await page.screenshot({ path: `${outDir}/a3-slider-changed.png` });
-push({ step: 'slider-nbi-46', layout: await layout('slider-nbi-46', { before, nbiReadout: nbiReadout.length }) });
+push({
+  step: 'slider-nbi-46',
+  layout: await layout('slider-nbi-46', { before, nbiReadout: nbiReadout.length }),
+});
 
 // 4. inject a fault from the overview quick panel
 const injectButtons = page.getByRole('button', { name: 'INJECT' });
@@ -136,7 +140,10 @@ if (injectCount > 0) {
 await page.screenshot({ path: `${outDir}/a4-fault.png` });
 push({ step: 'fault-injected', layout: await layout('fault-injected') });
 
-const activeFaults = await page.locator('main').innerText().then((text) => (text.includes('ACTIVE') ? 1 : 0));
+const activeFaults = await page
+  .locator('main')
+  .innerText()
+  .then((text) => (text.includes('ACTIVE') ? 1 : 0));
 report.checks.faultInjected = activeFaults === 1;
 
 // 5. every page
@@ -162,7 +169,10 @@ for (const [label, slug] of pages) {
 // 6. What-if on the simulation page
 await page.locator('nav button', { hasText: 'SIMULATION' }).first().click();
 await page.waitForTimeout(600);
-await page.getByRole('button', { name: /RUN WHAT-IF/ }).first().click();
+await page
+  .getByRole('button', { name: /RUN WHAT-IF/ })
+  .first()
+  .click();
 await page.waitForTimeout(4000);
 await page.screenshot({ path: `${outDir}/c-whatif.png` });
 const whatIfRows = await page.locator('table tbody tr').count();
@@ -172,7 +182,10 @@ push({ step: 'whatif', layout: await layout('whatif') });
 // 7. history capture + playback
 await page.locator('nav button', { hasText: 'HISTORY' }).first().click();
 await page.waitForTimeout(900);
-await page.getByRole('button', { name: /CAPTURE LIVE BUFFER/ }).first().click();
+await page
+  .getByRole('button', { name: /CAPTURE LIVE BUFFER/ })
+  .first()
+  .click();
 await page.waitForTimeout(800);
 await page.getByRole('button', { name: /PLAY/ }).first().click();
 await page.waitForTimeout(1500);
@@ -245,7 +258,10 @@ await page.locator('nav button', { hasText: 'SIMULATION' }).first().click();
 await page.waitForTimeout(700);
 try {
   const downloadPromise = page.waitForEvent('download', { timeout: 15000 });
-  await page.getByRole('button', { name: /CSV HISTORY/ }).first().click();
+  await page
+    .getByRole('button', { name: /CSV HISTORY/ })
+    .first()
+    .click();
   const download = await downloadPromise;
   const downloadPath = await download.path();
   const fileContent = await readFile(downloadPath, 'utf8');
@@ -264,7 +280,10 @@ try {
 await page.locator('nav button', { hasText: 'HISTORY' }).first().click();
 await page.waitForTimeout(800);
 await page.locator('input[placeholder="Session name…"]').first().fill('audit-session');
-await page.getByRole('button', { name: /SAVE LIVE SESSION/ }).first().click();
+await page
+  .getByRole('button', { name: /SAVE LIVE SESSION/ })
+  .first()
+  .click();
 await page.waitForTimeout(900);
 const readStorage = () =>
   page.evaluate(() => {
@@ -296,7 +315,13 @@ if (await loadButton.count()) {
   await page.waitForTimeout(1000);
   playbackLoaded = (await page.locator('main').innerText()).includes('audit-session');
 }
-report.checks.storage = { savedBeforeReload, savedAfterReload, playbackLoaded, storageBeforeReload, storageAfterReload: await readStorage() };
+report.checks.storage = {
+  savedBeforeReload,
+  savedAfterReload,
+  playbackLoaded,
+  storageBeforeReload,
+  storageAfterReload: await readStorage(),
+};
 await page.screenshot({ path: `${outDir}/f-restored-session.png` });
 
 // text sanity
@@ -336,3 +361,31 @@ const summary = {
 
 console.log(JSON.stringify(summary, null, 2));
 await browser.close();
+
+// ---- CI gate -------------------------------------------------------------
+const failures = [];
+if (consoleErrors.length) failures.push(`${consoleErrors.length} console error(s)`);
+if (pageErrors.length) failures.push(`${pageErrors.length} page error(s)`);
+if (failedRequests.length) failures.push(`${failedRequests.length} failed request(s)`);
+const overflowSteps = report.steps.filter(
+  (entry) => entry.layout.horizontalOverflow || entry.layout.overflowing.length > 0,
+);
+if (overflowSteps.length)
+  failures.push(`horizontal overflow on: ${overflowSteps.map((s) => s.layout.tag).join(', ')}`);
+if (report.checks.bodyHasNaN) failures.push('body contains NaN/Infinity/undefined');
+if (!report.checks.faultInjected) failures.push('fault injection did not register');
+if (report.checks.whatIfRows < 10) failures.push('WHAT-IF comparison table was not produced');
+if (!report.checks.csvDownload || report.checks.csvDownload.error || !report.checks.csvDownload.header) {
+  failures.push('CSV export check failed');
+}
+if (!report.checks.storage || !report.checks.storage.playbackLoaded) {
+  failures.push('session persistence/restore check failed');
+}
+
+if (failures.length) {
+  console.error(`\n✗ Audit FAILED (${failures.length} check(s)):`);
+  for (const failure of failures) console.error(`  - ${failure}`);
+  process.exitCode = 1;
+} else {
+  console.log('\n✓ Audit passed: no console/page errors, no overflow, all interaction checks green.');
+}

@@ -59,7 +59,10 @@ export function stepCoilTemperature(params: {
   const ohmic = coilOhmicLossW(params.coilCurrentKA);
   const ac = coilAcLossW(params.coilCurrentKA, params.previousCurrentKA, params.dt);
   const capacity = clamp(params.cryoCapacity, 0.05, 1.5);
-  const cooling = DYNAMICS.coilCoolingConductanceWK * capacity * Math.max(0, params.temperatureK - DYNAMICS.cryogenTemperatureK);
+  const cooling =
+    DYNAMICS.coilCoolingConductanceWK *
+    capacity *
+    Math.max(0, params.temperatureK - DYNAMICS.cryogenTemperatureK);
   const net = ohmic + ac + Math.max(0, params.extraHeatW) - cooling;
   const deltaT = (net / DYNAMICS.coilHeatCapacityJK) * params.dt;
   return clamp(params.temperatureK + deltaT, DYNAMICS.cryogenTemperatureK, 120);
@@ -100,7 +103,8 @@ export function coilThermalMargin(coilTemperatureK: number): number {
 
 /** Percentage deviation of the achieved field from the requested field. */
 export function fieldDeviationPct(actualFieldT: number, requestedFieldT: number): number {
-  const deviation = safeDiv(Math.abs(actualFieldT - requestedFieldT), Math.max(requestedFieldT, 0.01), 0) ?? 0;
+  const deviation =
+    safeDiv(Math.abs(actualFieldT - requestedFieldT), Math.max(requestedFieldT, 0.01), 0) ?? 0;
   return deviation * 100;
 }
 
