@@ -71,7 +71,8 @@ export function EventLog({ height = 260, compact = false }: { height?: number; c
           CSV
         </button>
       </div>
-      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region must be keyboard focusable (WCAG 2.1.1) */}
+      {/* A scrollable region must be keyboard focusable (WCAG 2.1.1) even though it is not an interactive element. */}
+      {/* eslint-disable jsx-a11y/no-noninteractive-tabindex */}
       <div
         tabIndex={0}
         role="region"
@@ -127,6 +128,7 @@ export function EventLog({ height = 260, compact = false }: { height?: number; c
           </table>
         )}
       </div>
+      {/* eslint-enable jsx-a11y/no-noninteractive-tabindex */}
       <div className="mt-1 text-right text-[8px] text-faint">
         Last update {events.length ? formatTimestamp(events[events.length - 1].wallMs) : '—'} · newest first
       </div>
@@ -188,7 +190,8 @@ export function AlarmHistoryTable() {
         </span>
       </div>
 
-      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region must be keyboard focusable (WCAG 2.1.1) */}
+      {/* A scrollable region must be keyboard focusable (WCAG 2.1.1) even though it is not an interactive element. */}
+      {/* eslint-disable jsx-a11y/no-noninteractive-tabindex */}
       <div
         tabIndex={0}
         role="region"
@@ -246,6 +249,7 @@ export function AlarmHistoryTable() {
           </table>
         )}
       </div>
+      {/* eslint-enable jsx-a11y/no-noninteractive-tabindex */}
     </div>
   );
 }
