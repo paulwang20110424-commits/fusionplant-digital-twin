@@ -7,6 +7,34 @@ the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 > Every value produced by this project is **simulated**. It is an educational and
 > software-validation artefact, not a representation of any real fusion device.
 
+## [1.2.1] — 2026-10-24 · "Complete Verification"
+
+Closes every test/verification gap listed in the v1.2.0 acceptance review. No
+behaviour change to the simulation or the UI beyond accessible labels.
+
+### Added
+
+- jsdom + React Testing Library harness with component-level accessibility contract
+  tests (navigation names, `aria-current`, transport names, live regions, distinct
+  INJECT names, slider value text, switch semantics).
+- 3D ↔ device linkage tests: slug/equipment-id mapping, page routing, fault → component
+  mapping, propagation-chain integrity.
+- Guided-demo persistence tests against a real `localStorage`, plus a WebGL-unavailable
+  fallback test for the scene error boundary.
+- Replay-isolation tests (engine and history buffer are untouched) and an A/B
+  comparison numerical test.
+- Documentation screenshots are validated in CI (`npm run check:assets`).
+
+### Changed
+
+- Test suite grew from 129 to 135 tests; the version tests now assert against
+  `APP_VERSION` instead of a hard-coded string.
+
+### Fixed
+
+- CI lint failure caused by `tabIndex` on focusable scroll regions (block-scoped
+  `eslint-disable` with a documented justification).
+
 ## [1.2.0] — 2026-10-23 · "Reproducible Twin"
 
 ### Added

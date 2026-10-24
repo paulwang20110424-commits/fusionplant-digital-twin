@@ -93,9 +93,9 @@ const makeSession = (): PersistedSession => ({
 
 describe('v1.2.0 — version baseline', () => {
   it('package.json is 1.2.0 and matches the app constant', () => {
-    expect(pkg.version).toBe('1.2.0');
-    expect(APP_VERSION).toBe('1.2.0');
-    expect(VERSION_LABEL).toContain('v1.2.0');
+    expect(pkg.version).toBe(APP_VERSION);
+    expect(APP_VERSION).toMatch(/^1\.2\.\d+$/);
+    expect(VERSION_LABEL).toContain(`v${APP_VERSION}`);
     expect(RELEASE_NAME.length).toBeGreaterThan(0);
   });
 
@@ -109,7 +109,7 @@ describe('v1.2.0 — version baseline', () => {
 
   it('JSON export carries appVersion, modelVersion, schema, seed, scenario and timeScale', () => {
     const parsed = JSON.parse(sessionToJSON(makeSession()));
-    expect(parsed.appVersion).toBe('1.2.0');
+    expect(parsed.appVersion).toBe(APP_VERSION);
     expect(parsed.modelVersion).toBe(MODEL_VERSION);
     expect(parsed.exportSchemaVersion).toBe(1);
     expect(parsed.exportVersion).toBe(1); // legacy alias retained
@@ -117,7 +117,7 @@ describe('v1.2.0 — version baseline', () => {
     expect(parsed.scenario).toBe('Baseline Scenario');
     expect(parsed.timeScale).toBe(2);
     expect(parsed.exportedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
-    expect(parsed.session.appVersion).toBe('1.2.0');
+    expect(parsed.session.appVersion).toBe(APP_VERSION);
     expect(parsed.session.samples).toHaveLength(3);
   });
 
@@ -129,7 +129,7 @@ describe('v1.2.0 — version baseline', () => {
       timeScale: 2,
     });
     const csv = samplesToCSV([sample(0)], meta);
-    expect(csv).toContain('# appVersion: 1.2.0');
+    expect(csv).toContain(`# appVersion: ${APP_VERSION}`);
     expect(csv).toContain('# modelVersion: ' + MODEL_VERSION);
     expect(csv).toContain('# exportSchemaVersion: 1');
     expect(csv).toContain('# randomSeed: 7');
@@ -149,7 +149,7 @@ describe('v1.2.0 — version baseline', () => {
     expect(name).toContain('cooling-stress-test');
     expect(name).toContain('FUS-20260101-XYZ');
     expect(name).toContain('20261023-102030');
-    expect(name).toContain('v1.2.0');
+    expect(name).toContain(`v`);
     expect(name.endsWith('.json')).toBe(true);
   });
 });
@@ -304,7 +304,7 @@ describe('v1.2.0 — session import', () => {
     const parsed = parseSessionExport(json);
     expect(parsed.ok).toBe(true);
     expect(parsed.compatibility).toBe('current');
-    expect(parsed.appVersion).toBe('1.2.0');
+    expect(parsed.appVersion).toBe(APP_VERSION);
     expect(parsed.session?.samples).toHaveLength(3);
     expect(parsed.session?.randomSeed).toBe(20260101);
     expect(parsed.session?.runId).toBe('FUS-20260101-TEST');

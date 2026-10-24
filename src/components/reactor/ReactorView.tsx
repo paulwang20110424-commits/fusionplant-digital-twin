@@ -25,7 +25,7 @@ const COMPONENT_ALARM_SOURCES: Record<ReactorComponentId, string[]> = {
   'coolant-manifold': ['COOLING'],
 };
 
-class SceneErrorBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
+export class SceneErrorBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
   state = { error: null as string | null };
 
   static getDerivedStateFromError(error: Error) {
